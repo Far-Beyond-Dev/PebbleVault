@@ -17,6 +17,18 @@ pub fn greet(name: &str) -> String {
     }
 }
 
+// pub fn create_db() -> usize {
+//     unsafe {
+//         CreateDB() as usize
+//     }
+// }
+// 
+// pub fn close_db(db: usize) {
+//     unsafe {
+//         CloseDB(db as usize);
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -26,4 +38,16 @@ mod tests {
         let result = greet("Rust");
         assert_eq!(result, "Hello from Go, Rust!");
     }
+
+    // #[test]
+    // fn test_create_db() {
+    //     let result = create_db();
+    //     assert_eq!(result, 1);
+    // }
+// 
+    // #[test]
+    // fn test_close_db() {
+    //     let db = create_db();
+    //     close_db(db);
+    // }
 }

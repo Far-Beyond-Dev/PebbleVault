@@ -1,11 +1,17 @@
 extern crate bindgen;
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+     // Define the path to the go directory
+     let go_dir = Path::new("./go");
+
+     // Change the current directory to the go directory before running the go build command
+     assert!(env::set_current_dir(&go_dir).is_ok(), "Failed to change directory to ./go");
 
     let mut go_build = Command::new("go");
     go_build
@@ -13,7 +19,7 @@ fn main() {
         .arg("-buildmode=c-archive")
         .arg("-o")
         .arg(out_path.join("libgo.a"))
-        .arg("./go/export.go");
+        .arg("./go/main.go");
 
     go_build.status().expect("Go build failed");
 
