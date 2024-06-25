@@ -19,7 +19,7 @@ fn main() {
         .arg("-buildmode=c-archive")
         .arg("-o")
         .arg(out_path.join("libgo.a"))
-        .arg("./go/main.go");
+        .arg("./main.go");
 
     go_build.status().expect("Go build failed");
 
