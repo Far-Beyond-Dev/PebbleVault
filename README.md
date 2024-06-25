@@ -15,8 +15,8 @@ Welcome to PebbleVault, the database that rocks! 🚀 Imagine a world where pebb
 - Rust Reliability: Built with Rust, so your pebbles are safe and sound, protected from the elements (and by elements, we mean bugs).
 ## How It Works 🔧
 - Collect your pebbles (data objects) and store them in memory for rapid access.
-- Drop pebbles you no longer need, freeing up memory and lightening your load.
-- Throw pebbles to MySQL when you want them to settle down and enjoy a longer stay.
+- Drop pebbles you no longer need, freeing up memory or disk and lightening your load.
+- Throw pebbles to disk when you want them to settle down and enjoy a longer stay.
 
 ## Installation 🛠️
 To get started with PebbleVault, just run:
