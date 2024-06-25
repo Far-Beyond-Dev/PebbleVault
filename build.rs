@@ -23,6 +23,9 @@ fn main() {
 
     go_build.status().expect("Go build failed");
 
+    // Change back to the original directory if needed
+    //assert!(env::set_current_dir("/PebbleVault").is_ok(), "Failed to change back to the original directory");
+
     let bindings = bindgen::Builder::default()
         .header(out_path.join("libgo.h").to_str().unwrap())
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
