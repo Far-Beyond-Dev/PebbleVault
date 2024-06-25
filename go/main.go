@@ -40,4 +40,6 @@ func CloseDB(db uintptr) {
 	(*buntdb.DB)(unsafe.Pointer(db)).Close()
 }
 
-func main() {}
+func main() {
+
+}
