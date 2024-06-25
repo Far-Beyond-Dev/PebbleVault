@@ -3,7 +3,7 @@ name = "PebbleVault"
 description = "A high performance data storage solution written in rust"
 license = "Apache-2.0"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [build-dependencies]
 bindgen = "*"
