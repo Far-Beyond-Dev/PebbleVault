@@ -34,9 +34,38 @@ pub fn create_db() -> *mut c_void {
     db_handle as *mut c_void
 }
 
-pub fn close_db(db: usize) {
+pub fn close_db(db: *mut c_void) {
     unsafe {
-        CloseDB(db as usize);
+        CloseDB(db as *mut c_void);
+    }
+}
+
+pub fn create_spatial_index(db: *mut c_void, index_name: &str, index_key: &str) {
+    let index_name = CString::new(index_name).unwrap();
+    let index_key = CString::new(index_key).unwrap();
+
+    unsafe {
+        CreateSpatialIndex(db as *mut c_void, index_name.as_ptr() as *mut c_char, index_key.as_ptr() as *mut c_char);
+    }
+}
+
+pub fn create_galaxy(db: *mut c_void, key: &str, value: &str) {
+    let key = CString::new(key).unwrap();
+    let value = CString::new(value).unwrap();
+
+    unsafe {
+        CreateGalaxy(db as *mut c_void, key.as_ptr() as *mut c_char, value.as_ptr() as *mut c_char);
+    }
+}
+
+pub fn get_k_nearest_galaxies(db: *mut c_void, key: &str) -> String {
+    let key = CString::new(key).unwrap();
+
+    unsafe {
+        let cstr = CStr::from_ptr(GetKNearestGalaxys(db as *mut c_void, key.as_ptr() as *mut c_char));
+        let s = String::from_utf8_lossy(cstr.to_bytes()).to_string();
+        GoFree(cstr.as_ptr() as *mut c_char);
+        s
     }
 }
 
@@ -52,16 +81,31 @@ mod tests {
 
     #[test]
     fn test_create_db() {
-        let result = create_db();
-        println!("Result: {}", result);
-        assert_eq!(result, 1);
+        let db = create_db();
+        println!("Result: {}", db);
+        assert_eq!(db, 1);
 
-        result
+        db
     }
 
     #[test]
-    fn test_close_db() {
-        let db = create_db();
+    fn test_close_db(db: *mut c_void) {
         close_db(db);
+    }
+
+    #[test]
+    fn test_create_spatial_index() {
+        create_spatial_index(db, "fleet", "fleet:*:pos");
+    }
+
+    #[test]
+    fn test_create_galaxy() {
+        create_galaxy(db, "galaxy:1", "data");
+    }
+
+    #[test]
+    fn test_get_k_nearest_galaxies() {
+        let result = get_k_nearest_galaxies(db, "galaxy:1");
+        println!("Result: {}", result);
     }
 }
