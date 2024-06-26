@@ -34,9 +34,9 @@ pub fn create_db() -> *mut c_void {
     db_handle as *mut c_void
 }
 
-pub fn close_db(db: *mut c_void) {
+pub fn close_db(db: *mut c_void ) {
     unsafe {
-        CloseDB(db as *mut c_void);
+        CloseDB(db as usize);
     }
 }
 
@@ -44,8 +44,10 @@ pub fn create_spatial_index(db: *mut c_void, index_name: &str, index_key: &str) 
     let index_name = CString::new(index_name).unwrap();
     let index_key = CString::new(index_key).unwrap();
 
+    println!("Creating Spatial Index: {} {}", index_name.to_str().unwrap(), index_key.to_str().unwrap());
+
     unsafe {
-        CreateSpatialIndex(db as *mut c_void, index_name.as_ptr() as *mut c_char, index_key.as_ptr() as *mut c_char);
+        CreateSpatialIndex(db as usize, index_name.as_ptr() as *mut c_char, index_key.as_ptr() as *mut c_char);
     }
 }
 
@@ -53,16 +55,20 @@ pub fn create_galaxy(db: *mut c_void, key: &str, value: &str) {
     let key = CString::new(key).unwrap();
     let value = CString::new(value).unwrap();
 
+    println!("Creating Galaxy: {} {}", key.to_str().unwrap(), value.to_str().unwrap());
+
     unsafe {
-        CreateGalaxy(db as *mut c_void, key.as_ptr() as *mut c_char, value.as_ptr() as *mut c_char);
+        CreateGalaxy(db as usize, key.as_ptr() as *mut c_char, value.as_ptr() as *mut c_char);
     }
 }
 
 pub fn get_k_nearest_galaxies(db: *mut c_void, key: &str) -> String {
     let key = CString::new(key).unwrap();
+    
+    print!("Getting K Nearest Galaxies: {}", key.to_str().unwrap());
 
     unsafe {
-        let cstr = CStr::from_ptr(GetKNearestGalaxys(db as *mut c_void, key.as_ptr() as *mut c_char));
+        let cstr = CStr::from_ptr(GetKNearestGalaxys(db as usize, key.as_ptr() as *mut c_char));
         let s = String::from_utf8_lossy(cstr.to_bytes()).to_string();
         GoFree(cstr.as_ptr() as *mut c_char);
         s
