@@ -28,7 +28,7 @@ pub fn greet(name: &str) -> String {
 // in Go, the return type is uintptr, which is an unsigned integer type that is large enough to hold the bit pattern of any pointer.
 // In Rust, we use *mut c_void to represent this type. its a opaque pointer.
 pub fn create_db() -> *mut c_void {
-    let db_handle = unsafe { CreateDB() };
+    let db_handle = unsafe { CreateDB() as *mut c_void};
     println!("DB Created");
     println!("DB Handle: {:?}", db_handle as *mut c_void);
     db_handle as *mut c_void
