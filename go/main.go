@@ -26,7 +26,7 @@ func GoFree(ptr *C.char) {
 //export CreateDB
 func CreateDB() uintptr {
 	// Open the data.db file. It will be created if it doesn't exist.
-	db, err := buntdb.Open("data.db")
+	db, err := buntdb.Open(":memory:")
 	if err != nil {
 		log.Fatal(err)
 	}
