@@ -32,11 +32,12 @@ pub fn create_db() -> *mut c_void {
     let mem_db_handle: *mut c_void = unsafe { CreateDB() as *mut c_void};
     println!("Memory DB Created");
     println!("Memory DB Handle: {:?}", mem_db_handle as *mut c_void);
-    mem_db_handle as *mut c_void
     
     // Create the SQLite database to store the more complex data about objects. This database will have two indexes, the object GUID, and the object location in world space
     let sql_db_handle = MySQLGeo::Database::new("data").unwrap();
     MySQLGeo::Database::create_table(&sql_db_handle);
+    
+    mem_db_handle as *mut c_void
 }
 
 pub fn close_db(db: *mut c_void ) {
