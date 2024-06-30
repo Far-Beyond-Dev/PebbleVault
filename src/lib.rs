@@ -7,12 +7,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-use std::ffi::{
-    c_char, 
-    CStr, 
-    CString, 
-    c_void
-};
+use std::ffi::{c_char, CStr, CString, c_void};
+mod MySQLGeo;
+
 
 pub fn greet(name: &str) -> String {
     let name = CString::new(name).unwrap();
@@ -28,10 +25,11 @@ pub fn greet(name: &str) -> String {
 // in Go, the return type is uintptr, which is an unsigned integer type that is large enough to hold the bit pattern of any pointer.
 // In Rust, we use *mut c_void to represent this type. its a opaque pointer.
 pub fn create_db() -> *mut c_void {
-    let db_handle = unsafe { CreateDB() as *mut c_void};
-    println!("DB Created");
-    println!("DB Handle: {:?}", db_handle as *mut c_void);
-    db_handle as *mut c_void
+    let mem_db_handle = unsafe { CreateDB() as *mut c_void};
+    let sql_db_handle = MySQLGeo.Database.create_table();
+    println!("Memory DB Created");
+    println!("Memory DB Handle: {:?}", mem_db_handle as *mut c_void);
+    mem_db_handle as *mut c_void
 }
 
 pub fn close_db(db: *mut c_void ) {
