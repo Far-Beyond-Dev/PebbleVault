@@ -36,7 +36,7 @@ impl Database {
                 x REAL NOT NULL,
                 y REAL NOT NULL,
                 z REAL NOT NULL,
-                data TEXT NOT NULL
+                dataFile TEXT NOT NULL
             )",
             [],
         )?;
