@@ -107,15 +107,51 @@ To get started with PebbleVault, just run:
 ```sh
 cargo install pebblevault
 ```
-Then, initialize your vault:
+
+## Example Usage
 
 ```rs
 use pebblevault::Vault;
 
 let vault = Vault::new();
+
+// Create a new table (or collection) of pebbles
+vault.pebblestack("my_pebble_stack");
+
+// Insert data into the vault
 vault.collect("my_precious_pebble", data);
+
+// Bulk insert multiple pebbles
+vault.pebbledump("my_pebble_stack", vec![data1, data2, data3]);
+
+// Query the vault to find specific pebbles
+let results = vault.pebblesift("my_pebble_stack", query_conditions);
+
+// Update an existing pebble's data
+vault.pebbleshift("my_precious_pebble", new_data);
+
+// Partially update a pebble's data
+vault.pebblepatch("my_precious_pebble", partial_data);
+
+// Retrieve data from the vault
+let data = vault.skim("my_precious_pebble");
+
+// Persist data to MySQL
 vault.throw("my_precious_pebble");
+
+// Remove data from the vault
 vault.drop("my_precious_pebble");
+
+// Ensure atomic operations with a transaction
+vault.pebbleflow(|txn| {
+    txn.collect("pebble1", data1);
+    txn.collect("pebble2", data2);
+    txn.throw("pebble1");
+    txn.drop("pebble2");
+});
+
+// Delete an entire table (or collection) of pebbles
+vault.pebblesquash("my_pebble_stack");
 ```
 
 ## Contribute 🤝
