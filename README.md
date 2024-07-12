@@ -76,6 +76,24 @@ vault.pebblestack("gem", "my_pebble_stack");
 Add multiple pebbles at once.
 
 ```rs
+let data1 = r#"{
+    "name": "Sapphire",
+    "color": "Blue",
+    "carat": 2.5
+}"#;
+
+let data2 = r#"{
+    "name": "Emerald",
+    "color": "Green",
+    "carat": 1.8
+}"#;
+
+let data3 = r#"{
+    "name": "Topaz",
+    "color": "Yellow",
+    "carat": 3.0
+}"#;
+
 vault.pebbledump("gem", "my_pebble_stack", vec![data1, data2, data3]);
 ```
 
