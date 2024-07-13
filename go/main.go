@@ -165,8 +165,8 @@ func query_spatial_index_by_area(db uintptr, indexName *C.char, minX, minY, minZ
 	return C.CString(strings.TrimRight(result.String(), ","))
 }
 
-//export get_object_by_uuid
-func get_object_by_uuid(db uintptr, uuid *C.char) *C.char {
+//export query_object_by_uuid
+func query_object_by_uuid(db uintptr, uuid *C.char) *C.char {
 	// Retrieve an object by its UUID
 	// Parameters:
 	// - db: pointer to the BuntDB database
@@ -222,6 +222,55 @@ func query_objects_by_type(db uintptr, objectType *C.char) *C.char {
 			var obj SpatialObject
 			if err := json.Unmarshal([]byte(value), &obj); err == nil {
 				if obj.Type == C.GoString(objectType) {
+					result.WriteString(value)
+					result.WriteString(",")
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	return C.CString(strings.TrimRight(result.String(), ","))
+}
+
+//export delete_objects_by_type
+func delete_objects_by_type(db uintptr, objectType *C.char) {
+	// Delete all objects of a specific type
+	// Parameters:
+	// - db: pointer to the BuntDB database
+	// - objectType: type of objects to delete
+	(*buntdb.DB)(unsafe.Pointer(db)).Update(func(tx *buntdb.Tx) error {
+		tx.Ascend("", func(key, value string) bool {
+			var obj SpatialObject
+			if err := json.Unmarshal([]byte(value), &obj); err == nil {
+				if obj.Type == C.GoString(objectType) {
+					tx.Delete(key)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+}
+
+//export query_objects_by_type_and_area
+func query_objects_by_type_and_area(db uintptr, objectType *C.char, minX, minY, minZ, maxX, maxY, maxZ float64) *C.char {
+	// Retrieve all objects of a specific type within a given 3D bounding box
+	// Parameters:
+	// - db: pointer to the BuntDB database
+	// - objectType: type of objects to retrieve
+	// - minX, minY, minZ: minimum coordinates of the bounding box
+	// - maxX, maxY, maxZ: maximum coordinates of the bounding box
+	// Returns: C string containing comma-separated JSON objects of matching items
+	var result strings.Builder
+	(*buntdb.DB)(unsafe.Pointer(db)).View(func(tx *buntdb.Tx) error {
+		tx.Ascend("", func(key, value string) bool {
+			var obj SpatialObject
+			if err := json.Unmarshal([]byte(value), &obj); err == nil {
+				if obj.Type == C.GoString(objectType) &&
+					obj.X >= minX && obj.X <= maxX &&
+					obj.Y >= minY && obj.Y <= maxY &&
+					obj.Z >= minZ && obj.Z <= maxZ {
 					result.WriteString(value)
 					result.WriteString(",")
 				}
