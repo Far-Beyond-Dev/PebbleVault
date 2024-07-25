@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result, Result as SqlResult};
+use rusqlite::{params, Connection, Result};
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 
@@ -12,8 +12,8 @@ impl Vault {
         Vault { connection }
     }
 
-    pub fn define_class(&self, class_name: &str, schema: &str) -> SqlResult<()> {
-        let schema: Value = serde_json::from_str(schema)?;
+    pub fn define_class(&self, class_name: &str, schema: &str) -> Result<()> {
+        let schema: Value = serde_json::from_str(schema).unwrap();
         let mut columns = Vec::new();
         let mut join_tables = Vec::new();
 
@@ -22,6 +22,7 @@ impl Vault {
                 if field_type == "array" {
                     let join_table = format!("{}_{}_join", class_name, field_name);
                     join_tables.push((join_table.clone(), field_name.clone()));
+                    columns.push(format!("{}_id INTEGER", field_name));
                     self.connection.execute(
                         &format!(
                             "CREATE TABLE IF NOT EXISTS {} ({}_id INTEGER, {}_id INTEGER)",
@@ -45,12 +46,13 @@ impl Vault {
             class_name,
             columns.join(", ")
         );
+
         self.connection.execute(&sql, [])?;
         Ok(())
     }
 
-    pub fn collect(&self, class_name: &str, data: &str) -> SqlResult<()> {
-        let data: Value = serde_json::from_str(data)?;
+    pub fn collect(&self, class_name: &str, data: &str) -> Result<()> {
+        let data: Value = serde_json::from_str(data).unwrap();
         let mut columns = Vec::new();
         let mut values = Vec::new();
         let mut join_entries = Vec::new();
@@ -79,12 +81,10 @@ impl Vault {
         );
 
         self.connection.execute(&sql, [])?;
+
         let last_id = self.connection.last_insert_rowid();
         for (join_table, value) in join_entries {
-            let sql = format!(
-                "INSERT INTO {} ({}_id, {}_id) VALUES (?, ?)",
-                join_table, class_name, "ingredient"
-            );
+            let sql = format!("INSERT INTO {} ({}_id, {}_id) VALUES (?, ?)", join_table, class_name, "ingredient");
             self.connection.execute(&sql, params![last_id, value.as_i64().unwrap()])?;
         }
 
