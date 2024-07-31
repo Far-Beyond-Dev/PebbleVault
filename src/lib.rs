@@ -5,14 +5,23 @@
                            // N.B. If any undefined behaviour occurs, it may be worthwhile to look
                            // into this FIRST.
 
+
 mod ffi;
+use ffi::*;
 
 use MySQLGeo::Database;
 mod MySQLGeo;
 
-// main to call the mod tests from ffi.rs
-pub fn main() {
-    ffi::main();
+use std::ffi::{c_char, CStr, CString, c_void};
+
+pub fn create_db() -> usize {
+    let db = ffi::CreateDB();
+    return db;
+}
+
+pub fn close_db(db: usize) {
+    ffi::CloseDB(db);
+    ffi::FreeDBPointer(db);
 }
 
 ////////////////////////////////////////////////////////////////////
