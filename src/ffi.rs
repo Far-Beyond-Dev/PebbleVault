@@ -225,12 +225,12 @@ pub fn main() {
   }
 
   // Create a spatial index
-  CreateSpatialIndex(db, "spatial_index");
-  println!("Created spatial index");
+    CreateSpatialIndex(db, "spatial_index");
+    println!("Created spatial index");
 
-  // Add object to spatial index
-  AddObjectToSpatialIndex(db, r#"{"type": "car", "uuid": "abc-123", "x": 1.0, "y": 2.0, "z": 3.0}"#);
-  println!("Added object to spatial index");
+    // Add object to spatial index
+    AddObjectToSpatialIndex(db, r#"{"type": "car", "uuid": "abc-123", "x": 1.0, "y": 2.0, "z": 3.0}"#);
+    println!("Added object to spatial index");
 
   // Query spatial index by area
   if let Some(result) = QuerySpatialIndexByArea(db, "spatial_index", 0.0, 0.0, 0.0, 2.0, 3.0, 4.0) {

@@ -4,138 +4,179 @@
 #![allow(improper_ctypes)] // silence u128 being not FFI safe warnings.
                            // N.B. If any undefined behaviour occurs, it may be worthwhile to look
                            // into this FIRST.
-
-
 mod ffi;
 use ffi::*;
+
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use lazy_static::lazy_static;
+use std::ffi::{c_char, CStr, CString, c_void};
 
 use MySQLGeo::Database;
 mod MySQLGeo;
 
-use std::ffi::{c_char, CStr, CString, c_void};
-
-pub fn create_db() -> usize {
-    let db = ffi::CreateDB();
-    return db;
+lazy_static! {
+    static ref DB_HANDLES: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
 }
 
-pub fn close_db(db: usize) {
-    ffi::CloseDB(db);
-    ffi::FreeDBPointer(db);
+
+fn get_handle(name: &str) -> Option<usize> {
+    let handles = DB_HANDLES.lock().unwrap();
+    handles.get(name).cloned()
 }
 
-////////////////////////////////////////////////////////////////////
-//  Lets define some functions for our API, these will allow the  //
-//  user of the database to run queries against their vault       //
-////////////////////////////////////////////////////////////////////
-/* 
+
 pub struct Vault {
-    mem_db_handle: *mut c_void,
+    mem_db_handles: Arc<Mutex<HashMap<String, usize>>>,
     sql_db_handle: MySQLGeo::Database,
 }
 
 impl Vault {
     pub fn new() -> Self {
-        let mem_db_handle: *mut c_void = unsafe { CreateDB() as *mut c_void };
-        println!("Memory DB Created");
-        println!("Memory DB Handle: {:?}", mem_db_handle);
-
-        let sql_db_handle = MySQLGeo::Database::new("data").unwrap();
-        MySQLGeo::Database::create_table(&sql_db_handle);
-
         Vault {
-            mem_db_handle,
-            sql_db_handle,
+            mem_db_handles: Arc::new(Mutex::new(HashMap::new())),
+            sql_db_handle: MySQLGeo::Database::new("data").unwrap(),
+        }
+    }
+
+    pub fn create_db(&self, name: &str) -> usize {
+        let handle = unsafe { create_in_memory_db() as usize };
+        let mut handles = self.mem_db_handles.lock().unwrap();
+        handles.insert(name.to_string(), handle);
+        handle
+    }
+
+    fn get_handle(&self, name: &str) -> Option<usize> {
+        let handles = self.mem_db_handles.lock().unwrap();
+        handles.get(name).cloned()
+    }
+
+    pub fn close_db(&self, name: &str) {
+        if let Some(handle) = self.get_handle(name) {
+            unsafe {
+                close_in_memory_db(handle);
+            }
+            let mut handles = self.mem_db_handles.lock().unwrap();
+            handles.remove(name);
+        }
+    }
+
+    pub fn free_db_pointer(&self, name: &str) {
+        if let Some(handle) = self.get_handle(name) {
+            unsafe {
+                free_in_memory_pointer_db(handle);
+            }
+            let mut handles = self.mem_db_handles.lock().unwrap();
+            handles.remove(name);
+        }
+    }
+
+    pub fn set_object(&self, name: &str, key: &str, value: &str) {
+        if let Some(handle) = self.get_handle(name) {
+            let c_key = CString::new(key).unwrap();
+            let c_value = CString::new(value).unwrap();
+            unsafe {
+                set_object(handle, c_key.as_ptr() as *mut c_char, c_value.as_ptr() as *mut c_char);
+            }
+        }
+    }
+
+    pub fn get_object(&self, name: &str, key: &str) -> Option<String> {
+        self.get_handle(name).and_then(|handle| {
+            let c_key = CString::new(key).unwrap();
+            unsafe {
+                let result = get_object(handle, c_key.as_ptr() as *mut c_char);
+                if result.is_null() {
+                    None
+                } else {
+                    let c_str = CStr::from_ptr(result);
+                    let string = c_str.to_string_lossy().into_owned();
+                    libc::free(result as *mut libc::c_void);
+                    Some(string)
+                }
+            }
+        })
+    }
+
+    pub fn delete_object(&self, name: &str, key: &str) {
+        if let Some(handle) = self.get_handle(name) {
+            let c_key = CString::new(key).unwrap();
+            unsafe {
+                delete_object(handle, c_key.as_ptr() as *mut c_char);
+            }
         }
     }
 
     pub fn collect(&self, key: &str, data: &str) {
         println!("Collecting pebble: {}", key);
-        // Implement the logic to store the data in memory and possibly MySQL
+        // TODO: Implement the logic to store the data in memory and possibly MySQL
+        // This might involve calling set_object on an in-memory database and also storing in SQL
     }
 
     pub fn throw(&self, key: &str) {
         println!("Throwing pebble: {}", key);
-        // Implement the logic to persist the data in MySQL
+        // TODO: Implement the logic to persist the data in MySQL
+        // This might involve retrieving data from in-memory DB and storing it in SQL
     }
 
     pub fn drop(&self, key: &str) {
         println!("Dropping pebble: {}", key);
-        // Implement the logic to remove the data from memory and MySQL
+        // TODO: Implement the logic to remove the data from memory and MySQL
+        // This might involve deleting from both in-memory DB and SQL
     }
 
     pub fn skim(&self, key: &str) -> Option<String> {
         println!("Skimming pebble: {}", key);
-        // Implement the logic to retrieve the data from memory or MySQL
+        // TODO: Implement the logic to retrieve the data from memory or MySQL
+        // This might involve checking in-memory DB first, then SQL if not found
         None
     }
 
     pub fn pebblestack(&self, table_name: &str) {
         println!("Creating pebblestack: {}", table_name);
-        // Implement the logic to create a new table or collection
+        // TODO: Implement the logic to create a new table or collection
+        // This might involve creating a new table in SQL
     }
 
     pub fn pebbledump(&self, table_name: &str, data: Vec<&str>) {
         println!("Dumping pebbles into stack: {}", table_name);
-        // Implement the logic to bulk insert data into the table or collection
+        // TODO: Implement the logic to bulk insert data into the table or collection
+        // This might involve bulk inserting into SQL
     }
 
     pub fn pebbleshift(&self, key: &str, new_data: &str) {
         println!("Shifting pebble: {}", key);
-        // Implement the logic to update the data of an existing entry
+        // TODO: Implement the logic to update the data of an existing entry
+        // This might involve updating both in-memory DB and SQL
     }
 
     pub fn pebblesift(&self, table_name: &str, query_conditions: &str) -> Vec<String> {
         println!("Sifting pebbles in stack: {}", table_name);
-        // Implement the logic to query and filter data from the table or collection
+        // TODO: Implement the logic to query and filter data from the table or collection
+        // This might involve querying SQL with the given conditions
         vec![]
     }
 
     pub fn pebblepatch(&self, key: &str, partial_data: &str) {
         println!("Patching pebble: {}", key);
-        // Implement the logic to partially update the data of an existing entry
+        // TODO: Implement the logic to partially update the data of an existing entry
+        // This might involve partial updates in both in-memory DB and SQL
     }
 
-    pub fn pebbleflow<F>(&self, transaction: F)
-    where
-        F: FnOnce(&Transaction),
-    {
-        println!("Starting pebbleflow transaction");
-        let txn = Transaction::new();
-        transaction(&txn);
-        // Implement the logic to execute the transaction atomically
-    }
+    //  pub fn pebbleflow<F>(&self, transaction: F)
+    //  where
+    //      F: FnOnce(&Transaction),
+    //  {
+    //      println!("Starting pebbleflow transaction");
+    //      let txn = Transaction::new();
+    //      transaction(&txn);
+    //      // TODO: Implement the logic to execute the transaction atomically
+    //      // This might involve managing a transaction across both in-memory DB and SQL
+    //  }
 
     pub fn pebblesquash(&self, table_name: &str) {
         println!("Squashing pebblestack: {}", table_name);
-        // Implement the logic to delete a table or collection
+        // TODO: Implement the logic to delete a table or collection
+        // This might involve dropping a table in SQL
     }
 }
-
-pub struct Transaction {
-    // Transaction implementation details
-}
-
-impl Transaction {
-    pub fn new() -> Self {
-        Transaction {
-            // Initialize transaction details
-        }
-    }
-
-    pub fn collect(&self, key: &str, data: &str) {
-        println!("Transaction collect: {}", key);
-        // Implement transaction logic for collect
-    }
-
-    pub fn throw(&self, key: &str) {
-        println!("Transaction throw: {}", key);
-        // Implement transaction logic for throw
-    }
-
-    pub fn drop(&self, key: &str) {
-        println!("Transaction drop: {}", key);
-        // Implement transaction logic for drop
-    }
-}
-*/
