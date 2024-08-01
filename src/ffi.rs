@@ -13,6 +13,8 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+use serde_json::Value;
+
 use std::ffi::{c_char, CStr, CString, c_void};
 use libc;
 
@@ -110,32 +112,50 @@ pub fn IterateOverCustomIndex(db: usize, index_name: &str) -> Option<String> {
 }
 
 pub fn CreateSpatialIndex(db: usize, index_name: &str) {
-  let c_index_name = CString::new(index_name).unwrap();
-  unsafe {
-      create_spatial_index(db as usize, c_index_name.as_ptr() as *mut c_char);
-  }
+    let c_index_name = CString::new(index_name).unwrap();
+    unsafe {
+        create_spatial_index(db as usize, c_index_name.as_ptr() as *mut c_char);
+    }
 }
 
 pub fn AddObjectToSpatialIndex(db: usize, json_data: &str) {
-  let c_json_data = CString::new(json_data).unwrap();
-  unsafe {
-      add_obejct_to_spatial_index(db as usize, c_json_data.as_ptr() as *mut c_char);
-  }
+    let c_json_data = CString::new(json_data).unwrap();
+    unsafe {
+        add_object_to_spatial_index(db as usize, c_json_data.as_ptr() as *mut c_char);
+    }
 }
 
 pub fn QuerySpatialIndexByArea(db: usize, index_name: &str, min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) -> Option<String> {
-  let c_index_name = CString::new(index_name).unwrap();
-  unsafe {
-      let result = query_spatial_index_by_area(db as usize, c_index_name.as_ptr() as *mut c_char, min_x, min_y, min_z, max_x, max_y, max_z);
-      if result.is_null() {
-          None
-      } else {
-          let c_str = CStr::from_ptr(result);
-          let string = c_str.to_string_lossy().into_owned();
-          libc::free(result as *mut libc::c_void);
-          Some(string)
-      }
-  }
+    let c_index_name = CString::new(index_name).unwrap();
+    unsafe {
+        let result = query_spatial_index_by_area(db as usize, c_index_name.as_ptr() as *mut c_char, min_x, min_y, min_z, max_x, max_y, max_z);
+        if result.is_null() {
+            println!("FFI: Null result from query_spatial_index_by_area");
+            None
+        } else {
+            let c_str = CStr::from_ptr(result);
+            println!("FFI: Raw C string result: {:?}", c_str);
+            let string = c_str.to_string_lossy().into_owned();
+            libc::free(result as *mut libc::c_void);
+            if string == "[]" {
+                println!("FFI: Empty result set");
+                None
+            } else {
+                Some(string)
+            }
+        }
+    }
+}
+
+pub fn Index3D(s: &str) -> Option<([f64; 3], [f64; 3])> {
+    if let Ok(obj) = serde_json::from_str::<Value>(s) {
+        let x = obj["x"].as_f64()?;
+        let y = obj["y"].as_f64()?;
+        let z = obj["z"].as_f64()?;
+        Some(([x, y, z], [x, y, z]))
+    } else {
+        None
+    }
 }
 
 pub fn QueryObjectByUUID(db: usize, uuid: &str) -> Option<String> {
@@ -167,7 +187,7 @@ pub fn UpdateObjectByUUID(db: usize, uuid: &str, json_data: &str) {
       update_object_by_uuid(db as usize, c_uuid.as_ptr() as *mut c_char, c_json_data.as_ptr() as *mut c_char);
   }
 }
-
+/* 
 pub fn QueryObjectsByType(db: usize, object_type: &str) -> Option<String> {
   let c_object_type = CString::new(object_type).unwrap();
   unsafe {
@@ -204,7 +224,7 @@ pub fn QueryObjectsByTypeAndArea(db: usize, object_type: &str, min_x: f64, min_y
       }
   }
 }
-
+*/
 
 
 
@@ -250,6 +270,7 @@ pub fn main() {
   UpdateObjectByUUID(db, "abc-123", r#"{"type": "car", "uuid": "abc-123", "x": 1.5, "y": 2.5, "z": 3.5}"#);
   println!("Updated object by UUID");
 
+/* 
   // Query objects by type
   if let Some(result) = QueryObjectsByType(db, "car") {
       println!("Queried objects by type: {}", result);
@@ -263,7 +284,7 @@ pub fn main() {
   } else {
       println!("No objects found of type 'car' in specified area");
   }
-
+*/
   // Delete object by UUID
   DeleteObjectByUUID(db, "abc-123");
   println!("Deleted object by UUID");

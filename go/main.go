@@ -9,19 +9,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"unsafe"
 
 	"github.com/tidwall/buntdb"
 )
 
-// Structure to hold our object data
 type SpatialObject struct {
-	Type string  `json:"type"`
 	UUID string  `json:"uuid"`
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
 	Z    float64 `json:"z"`
+	Data string  `json:"data"`
 }
 
 //export create_in_memory_db
@@ -120,49 +118,68 @@ func iterate_over_custom_index(db uintptr, indexName *C.char) *C.char {
 
 //export create_spatial_index
 func create_spatial_index(db uintptr, indexName *C.char) {
-	// Create a spatial index for 3D data
-	// Parameters:
-	// - db: pointer to the BuntDB database
-	// - indexName: name of the index (e.g., "spatial3d")
-	(*buntdb.DB)(unsafe.Pointer(db)).CreateSpatialIndex(C.GoString(indexName), "*", index3D)
+	err := (*buntdb.DB)(unsafe.Pointer(db)).CreateSpatialIndex(C.GoString(indexName), "*", index3D)
+	if err != nil {
+		fmt.Printf("Error creating spatial index: %v\n", err)
+	} else {
+		fmt.Printf("Spatial index created successfully: %s\n", C.GoString(indexName))
+	}
 }
 
-//export add_obejct_to_spatial_index
-func add_obejct_to_spatial_index(db uintptr, jsonData *C.char) {
-	// Add an object to the spatial index
-	// Parameters:
-	// - db: pointer to the BuntDB database
-	// - jsonData: JSON string containing type, uuid, x, y, z fields
-	//   e.g., {"type": "car", "uuid": "abc-123", "x": 1.0, "y": 2.0, "z": 3.0}
+//export add_object_to_spatial_index
+func add_object_to_spatial_index(db uintptr, jsonData *C.char) {
 	(*buntdb.DB)(unsafe.Pointer(db)).Update(func(tx *buntdb.Tx) error {
 		var obj SpatialObject
-		if err := json.Unmarshal([]byte(C.GoString(jsonData)), &obj); err != nil {
+		jsonString := C.GoString(jsonData)
+		fmt.Printf("Adding object: %s\n", jsonString)
+		if err := json.Unmarshal([]byte(jsonString), &obj); err != nil {
+			fmt.Printf("Error unmarshaling JSON: %v\n", err)
 			return err
 		}
-		_, _, err := tx.Set(obj.UUID, C.GoString(jsonData), nil)
+		_, _, err := tx.Set(obj.UUID, jsonString, nil)
+		if err != nil {
+			fmt.Printf("Error setting object: %v\n", err)
+		} else {
+			fmt.Printf("Successfully added object with UUID: %s\n", obj.UUID)
+		}
 		return err
 	})
 }
 
 //export query_spatial_index_by_area
 func query_spatial_index_by_area(db uintptr, indexName *C.char, minX, minY, minZ, maxX, maxY, maxZ float64) *C.char {
-	// Query the 3D spatial index within a given 3D bounding box
-	// Parameters:
-	// - db: pointer to the BuntDB database
-	// - indexName: name of the index to query
-	// - minX, minY, minZ: minimum coordinates of the bounding box
-	// - maxX, maxY, maxZ: maximum coordinates of the bounding box
-	// Returns: C string containing comma-separated JSON objects of matching items
-	var result strings.Builder
-	(*buntdb.DB)(unsafe.Pointer(db)).View(func(tx *buntdb.Tx) error {
-		tx.Intersects(C.GoString(indexName), fmt.Sprintf("[%f %f %f],[%f %f %f]", minX, minY, minZ, maxX, maxY, maxZ), func(key, val string) bool {
-			result.WriteString(val)
-			result.WriteString(",")
+	var results []string
+	fmt.Printf("Querying spatial index: %s\n", C.GoString(indexName))
+	fmt.Printf("Bounding box: [%f %f %f],[%f %f %f]\n", minX, minY, minZ, maxX, maxY, maxZ)
+	err := (*buntdb.DB)(unsafe.Pointer(db)).View(func(tx *buntdb.Tx) error {
+		return tx.Intersects(C.GoString(indexName), fmt.Sprintf("[%f %f %f],[%f %f %f]", minX, minY, minZ, maxX, maxY, maxZ), func(key, val string) bool {
+			fmt.Printf("Found intersecting object - Key: %s, Value: %s\n", key, val)
+			results = append(results, val)
 			return true
 		})
-		return nil
 	})
-	return C.CString(strings.TrimRight(result.String(), ","))
+	if err != nil {
+		fmt.Printf("Error querying spatial index: %v\n", err)
+		return C.CString("[]")
+	}
+	jsonResult, err := json.Marshal(results)
+	if err != nil {
+		fmt.Printf("Error marshaling results: %v\n", err)
+		return C.CString("[]")
+	}
+	fmt.Printf("Go: Spatial query result: %s\n", string(jsonResult))
+	return C.CString(string(jsonResult))
+}
+
+//export index3D
+func index3D(s string) (min, max []float64) {
+	var obj SpatialObject
+	if err := json.Unmarshal([]byte(s), &obj); err != nil {
+		fmt.Printf("Error unmarshaling object: %v\n", err)
+		return nil, nil
+	}
+	fmt.Printf("Indexing object: %+v\n", obj)
+	return []float64{obj.X, obj.Y, obj.Z}, []float64{obj.X, obj.Y, obj.Z}
 }
 
 //export query_object_by_uuid
@@ -209,6 +226,7 @@ func update_object_by_uuid(db uintptr, uuid *C.char, jsonData *C.char) {
 	})
 }
 
+/*
 //export query_objects_by_type
 func query_objects_by_type(db uintptr, objectType *C.char) *C.char {
 	// Retrieve all objects of a specific type
@@ -232,7 +250,8 @@ func query_objects_by_type(db uintptr, objectType *C.char) *C.char {
 	})
 	return C.CString(strings.TrimRight(result.String(), ","))
 }
-
+*/
+/*
 //export delete_objects_by_type
 func delete_objects_by_type(db uintptr, objectType *C.char) {
 	// Delete all objects of a specific type
@@ -252,7 +271,8 @@ func delete_objects_by_type(db uintptr, objectType *C.char) {
 		return nil
 	})
 }
-
+*/
+/*
 //export query_objects_by_type_and_area
 func query_objects_by_type_and_area(db uintptr, objectType *C.char, minX, minY, minZ, maxX, maxY, maxZ float64) *C.char {
 	// Retrieve all objects of a specific type within a given 3D bounding box
@@ -281,15 +301,5 @@ func query_objects_by_type_and_area(db uintptr, objectType *C.char, minX, minY, 
 	})
 	return C.CString(strings.TrimRight(result.String(), ","))
 }
-
-func index3D(s string) (min, max []float64) {
-	// Custom indexing function for 3D data
-	// Parses the JSON string and extracts X, Y, Z coordinates
-	var obj SpatialObject
-	if err := json.Unmarshal([]byte(s), &obj); err != nil {
-		return nil, nil
-	}
-	return []float64{obj.X, obj.Y, obj.Z}, []float64{obj.X, obj.Y, obj.Z}
-}
-
+*/
 func main() {}
