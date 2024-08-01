@@ -118,7 +118,7 @@ func iterate_over_custom_index(db uintptr, indexName *C.char) *C.char {
 
 //export create_spatial_index
 func create_spatial_index(db uintptr, indexName *C.char) {
-	err := (*buntdb.DB)(unsafe.Pointer(db)).CreateSpatialIndex(C.GoString(indexName), "*", index3D)
+	err := (*buntdb.DB)(unsafe.Pointer(db)).CreateSpatialIndex(C.GoString(indexName), "*:*:*:*", index3D)
 	if err != nil {
 		fmt.Printf("Error creating spatial index: %v\n", err)
 	} else {
@@ -136,7 +136,9 @@ func add_object_to_spatial_index(db uintptr, jsonData *C.char) {
 			fmt.Printf("Error unmarshaling JSON: %v\n", err)
 			return err
 		}
-		_, _, err := tx.Set(obj.UUID, jsonString, nil)
+		// Create spatial key in the format that BuntDB expects
+		spatialKey := fmt.Sprintf("%s:%f:%f:%f", obj.UUID, obj.X, obj.Y, obj.Z)
+		_, _, err := tx.Set(spatialKey, jsonString, nil)
 		if err != nil {
 			fmt.Printf("Error setting object: %v\n", err)
 		} else {
@@ -162,11 +164,7 @@ func query_spatial_index_by_area(db uintptr, indexName *C.char, minX, minY, minZ
 		fmt.Printf("Error querying spatial index: %v\n", err)
 		return C.CString("[]")
 	}
-	jsonResult, err := json.Marshal(results)
-	if err != nil {
-		fmt.Printf("Error marshaling results: %v\n", err)
-		return C.CString("[]")
-	}
+	jsonResult, _ := json.Marshal(results)
 	fmt.Printf("Go: Spatial query result: %s\n", string(jsonResult))
 	return C.CString(string(jsonResult))
 }

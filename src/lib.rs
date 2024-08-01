@@ -317,10 +317,10 @@ impl VaultManager {
             "z": z,
             "data": data
         }).to_string();
+        println!("JSON data being added: {}", json_data);
         ffi::AddObjectToSpatialIndex(handles.mem_db_handle, &json_data);
         Ok(())
     }
-
     /// Queries a spatial index by area in the specified database.
     ///
     /// # Arguments
@@ -335,6 +335,7 @@ impl VaultManager {
     /// * `Result<Option<String>, String>` - A JSON string of matching objects if successful, None if no matches, or an error message if failed.
     pub fn query_spatial_index_by_area(&self, db_name: &str, index_name: &str, min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) -> Result<Option<String>, String> {
         println!("Querying spatial index: {} in DB: {} by area", index_name, db_name);
+        println!("Bounding box: [{} {} {}],[{} {} {}]", min_x, min_y, min_z, max_x, max_y, max_z);
         let handles = self.get_db_handles(db_name)?;
         match ffi::QuerySpatialIndexByArea(handles.mem_db_handle, index_name, min_x, min_y, min_z, max_x, max_y, max_z) {
             Some(result) if result != "[]" => Ok(Some(result)),
@@ -342,7 +343,6 @@ impl VaultManager {
             None => Ok(None),
         }
     }
-
     /// Queries an object by its UUID in the specified database.
     ///
     /// # Arguments
