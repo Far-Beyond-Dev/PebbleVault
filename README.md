@@ -6,31 +6,28 @@
 ![logo-no-background](https://github.com/Stars-Beyond/PebbleVault/assets/34868944/927902b2-1579-4e3a-9c92-93a0f9e47e3e)
 
 ---
-Welcome to PebbleVault, the database that rocks! 🚀 Imagine a world where pebbles are more than just tiny stones; they are the building blocks of your data dreams. PebbleVault is a memory database with a MySQL twist, all wrapped up in the cozy, memory-safe blanket of Rust. It’s like having a pet rock collection, but for grown-ups with serious data needs!
+Welcome to PebbleVault, the spatial database that rocks your world! 🚀 Imagine a universe where pebbles are more than just tiny stones; they're the building blocks of your galactic data dreams. PebbleVault is a spatial database with a SQLite twist, all wrapped up in the cozy, memory-safe blanket of Rust. It's like having a pet rock collection, but for grown-ups with serious spatial data needs!
 
 ## Why PebbleVault? 🌟
-- **Speed**: With memory-based storage, your pebbles are accessible at lightning speed.
+- **Speed**: With in-memory storage and spatial indexing, your pebbles are accessible at light speed.
 - **Safety**: Thanks to Rust, your data is as safe as pebbles in a vault. No more worrying about memory leaks or data corruption.
-- **Flexibility**: Easily throw your pebbles to MySQL when you need more permanent storage. It's like tossing a pebble across a lake, but with fewer ripples and more data integrity.
-- **Simplicity**: Simple operations to add, drop, and throw pebbles make managing your data as easy as skipping stones on a serene pond.
-- **Amazing dad jokes**
+- **Flexibility**: Easily manage regions and objects in 3D space. It's like juggling pebbles, but with fewer dropped rocks and more data integrity.
+- **Persistence**: Throw your pebbles to SQLite when you need more permanent storage. It's like creating your own little rock garden, but for data!
+- **Simplicity**: Simple operations to add, query, and transfer objects make managing your spatial data as easy as skipping stones on a serene pond.
 
 ## Key Features 🎉
-- **In-Memory Speed**: Keep your pebbles in memory for ultra-fast access.
-- **MySQL Persistence**: Throw pebbles to MySQL for long-term storage, ensuring your data stays solid.
+- **Spatial Indexing**: Keep your pebbles organized in a 3D space for ultra-fast access.
+- **Region Management**: Create and manage multiple regions in your vast data universe.
+- **SQLite Persistence**: Store your pebble collection for the long term, ensuring your data stays solid as a rock.
 - **Rust Reliability**: Built with Rust, so your pebbles are safe and sound, protected from the elements (and by elements, we mean bugs).
 
 ## Operations 🔧
 
-### Define Class (Create Pebble Class)
-Define a class of pebbles with specific fields and field types using JSON.
+### Create or Load Region
+Create a new region or load an existing one from the persistent database.
 
-```rs
-vault.define_class("gem", r#"{
-    "name": "string",
-    "color": "string",
-    "carat": "float"
-}"#);
+```rust
+let region_id = vault_manager.create_or
 ```
 
 ### Collect (Insert Data)
