@@ -27,7 +27,7 @@ Welcome to PebbleVault, the spatial database that rocks your world! 🚀 Imagine
 Create a new region or load an existing one from the persistent database.
 
 ```rust
-let region_id = vault_manager.create_or
+let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
 ```
 
 ### Collect (Insert Data)
