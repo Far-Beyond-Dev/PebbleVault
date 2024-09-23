@@ -16,198 +16,110 @@ Welcome to PebbleVault, the spatial database that rocks your world! 🚀 Imagine
 - **Simplicity**: Simple operations to add, query, and transfer objects make managing your spatial data as easy as skipping stones on a serene pond.
 
 ## Key Features 🎉
-- **Spatial Indexing**: Keep your pebbles organized in a 3D space for ultra-fast access.
+- **Spatial Indexing**: Keep your pebbles organized in a 3D space using RTree for ultra-fast access.
 - **Region Management**: Create and manage multiple regions in your vast data universe.
 - **SQLite Persistence**: Store your pebble collection for the long term, ensuring your data stays solid as a rock.
 - **Rust Reliability**: Built with Rust, so your pebbles are safe and sound, protected from the elements (and by elements, we mean bugs).
 
-## Operations 🔧
+## Core Components 🧱
 
-### Create or Load Region
-Create a new region or load an existing one from the persistent database.
+### VaultManager (lib.rs)
+The VaultManager is the heart of PebbleVault. It's like the wise old rockkeeper, managing all your pebbles and regions.
+
+Key features:
+- **Region Creation**: Spawn new regions or load existing ones from the persistent storage.
+- **Object Management**: Add, query, and transfer objects (your precious pebbles) between regions.
+- **In-Memory Storage**: Uses RTree for lightning-fast spatial indexing.
+- **Persistence**: Periodically saves your pebble collection to SQLite for safekeeping.
+
+### MySQLGeo (MySQLGeo.rs)
+Despite its name, MySQLGeo actually uses SQLite (we know, it's confusing - we're working on renaming it!). It's like the bedrock of PebbleVault, providing a solid foundation for persistent storage.
+
+Key features:
+- **Point Storage**: Stores spatial points with associated data in SQLite.
+- **Spatial Queries**: Retrieve points within a specified radius.
+- **File-based Data Storage**: Handles larger data objects by storing them in separate files.
+
+## How They Rock Together 🎸
+VaultManager and MySQLGeo work in harmony, like a well-oiled rock tumbler:
+
+1. VaultManager keeps your pebbles (objects) organized in-memory using RTree.
+2. When it's time to save, VaultManager calls on MySQLGeo to store the data.
+3. MySQLGeo takes each pebble and carefully places it in the SQLite database.
+4. For bigger pebbles (large data objects), MySQLGeo creates special files to hold them.
+5. When VaultManager needs to load data, it asks MySQLGeo to fetch the pebbles from SQLite.
+
+It's like having a meticulous rock collector (VaultManager) working with a master stonemason (MySQLGeo) to keep your pebble collection pristine and organized!
+
+## API Overview 🛠️
+
+### VaultManager Operations
 
 ```rust
+// Create a new VaultManager
+let vault_manager = VaultManager::new("path/to/database.sqlite")?;
+
+// Create or load a region
 let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
+
+// Add an object to a region
+vault_manager.add_object(region_id, object_uuid, 10.0, 20.0, 30.0, "Shiny pebble data")?;
+
+// Query objects in a region
+let objects = vault_manager.query_region(region_id, -50.0, -50.0, -50.0, 50.0, 50.0, 50.0)?;
+
+// Transfer an object between regions
+vault_manager.transfer_player(player_uuid, from_region_id, to_region_id)?;
+
+// Save all data to persistent storage
+vault_manager.persist_to_disk()?;
 ```
 
-### Collect (Insert Data)
-Store a pebble (data object) in memory.
+### MySQLGeo Operations
 
-```rs
-vault.collect("gem", "my_precious_pebble", r#"{
-    "name": "Ruby",
-    "color": "Red",
-    "carat": 1.5
-}"#);
+```rust
+// Create a new Database connection
+let db = MySQLGeo::Database::new("path/to/database.sqlite")?;
+
+// Add a point to the database
+let point = MySQLGeo::Point::new(Some(uuid), x, y, z, serde_json::Value::String("Pebble data".to_string()));
+db.add_point(&point)?;
+
+// Query points within a radius
+let points = db.get_points_within_radius(0.0, 0.0, 0.0, 100.0)?;
 ```
 
-### Throw (Persist Data)
-Send a pebble to MySQL for long-term storage.
+## Example Usage 🚀
 
-```rs
-vault.throw("gem", "my_precious_pebble");
+```rust
+use pebblevault::{VaultManager, MySQLGeo};
+use uuid::Uuid;
+
+// Create a new VaultManager
+let mut vault_manager = VaultManager::new("my_pebble_collection.sqlite")?;
+
+// Create a new region
+let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
+
+// Add some pebbles to our collection
+let pebble1_uuid = Uuid::new_v4();
+vault_manager.add_object(region_id, pebble1_uuid, 10.0, 20.0, 30.0, "Smooth river pebble")?;
+
+let pebble2_uuid = Uuid::new_v4();
+vault_manager.add_object(region_id, pebble2_uuid, -15.0, 25.0, -5.0, "Sparkly quartz pebble")?;
+
+// Find pebbles in a specific area
+let found_pebbles = vault_manager.query_region(region_id, -20.0, 0.0, -10.0, 20.0, 30.0, 40.0)?;
+println!("Found {} pebbles in the area!", found_pebbles.len());
+
+// Save our precious pebble collection
+vault_manager.persist_to_disk()?;
+
+println!("Our pebble collection is safe and sound!");
 ```
 
-### Drop (Delete Data)
-Remove a pebble from memory or disk.
-
-```rs
-vault.drop("gem", "my_precious_pebble");
-```
-
-### Skim (Read Data)
-Retrieve a pebble from memory or disk.
-
-```rs
-let data = vault.skim("gem", "my_precious_pebble");
-```
-
-### PebbleStack (Create Table)
-Create a new table (or collection) of pebbles.
-
-```rs
-vault.pebblestack("gem", "my_pebble_stack");
-```
-
-### PebbleDump (Bulk Insert)
-Add multiple pebbles at once.
-
-```rs
-let data1 = r#"{
-    "name": "Sapphire",
-    "color": "Blue",
-    "carat": 2.5
-}"#;
-
-let data2 = r#"{
-    "name": "Emerald",
-    "color": "Green",
-    "carat": 1.8
-}"#;
-
-let data3 = r#"{
-    "name": "Topaz",
-    "color": "Yellow",
-    "carat": 3.0
-}"#;
-
-vault.pebbledump("gem", "my_pebble_stack", vec![data1, data2, data3]);
-```
-
-### PebbleShift (Update Data)
-Update an existing pebble's data.
-
-```rs
-vault.pebbleshift("gem", "my_precious_pebble", r#"{
-    "carat": 2.0
-}"#);
-```
-
-### PebbleSift (Query Data)
-Filter and find specific pebbles.
-
-```rs
-let results = vault.pebblesift("gem", "my_pebble_stack", r#"{
-    "color": "Red"
-}"#);
-```
-
-### PebblePatch (Patch Data)
-Partially update a pebble's data.
-
-```rs
-vault.pebblepatch("gem", "my_precious_pebble", r#"{
-    "color": "Deep Red"
-}"#);
-```
-
-### PebbleFlow (Transaction)
-Ensure atomic operations.
-
-```rs
-vault.pebbleflow(|txn| {
-    txn.collect("gem", "pebble1", data1);
-    txn.collect("gem", "pebble2", data2);
-    txn.throw("gem", "pebble1");
-    txn.drop("gem", "pebble2");
-});
-```
-
-### PebbleSquash (Delete Table)
-Remove an entire table (or collection) of pebbles.
-
-```rs
-vault.pebblesquash("gem", "my_pebble_stack");
-```
-
-## Installation 🛠️
-To get started with PebbleVault, just run:
-```sh
-cargo install pebblevault
-```
-
-## Example Usage
-
-```rs
-use pebblevault::Vault;
-
-let vault = Vault::new();
-
-// Define a class of pebbles
-vault.define_class("gem", r#"{
-    "name": "string",
-    "color": "string",
-    "carat": "float"
-}"#);
-
-// Create a new table (or collection) of pebbles
-vault.pebblestack("gem", "my_pebble_stack");
-
-// Insert data into the vault
-vault.collect("gem", "my_precious_pebble", r#"{
-    "name": "Ruby",
-    "color": "Red",
-    "carat": 1.5
-}"#);
-
-// Bulk insert multiple pebbles
-vault.pebbledump("gem", "my_pebble_stack", vec![data1, data2, data3]);
-
-// Query the vault to find specific pebbles
-let results = vault.pebblesift("gem", "my_pebble_stack", r#"{
-    "color": "Red"
-}"#);
-
-// Update an existing pebble's data
-vault.pebbleshift("gem", "my_precious_pebble", r#"{
-    "carat": 2.0
-}"#);
-
-// Partially update a pebble's data
-vault.pebblepatch("gem", "my_precious_pebble", r#"{
-    "color": "Deep Red"
-}"#);
-
-// Retrieve data from the vault
-let data = vault.skim("gem", "my_precious_pebble");
-
-// Persist data to MySQL
-vault.throw("gem", "my_precious_pebble");
-
-// Remove data from the vault
-vault.drop("gem", "my_precious_pebble");
-
-// Ensure atomic operations with a transaction
-vault.pebbleflow(|txn| {
-    txn.collect("gem", "pebble1", data1);
-    txn.collect("gem", "pebble2", data2);
-    txn.throw("gem", "pebble1");
-    txn.drop("gem", "pebble2");
-});
-
-// Delete an entire table (or collection) of pebbles
-vault.pebblesquash("gem", "my_pebble_stack");
-```
+## Load Testing 🏋️‍♂️
+PebbleVault comes with a built-in load testing module to ensure your pebbles can handle the pressure! Check out `load_test.rs` to see how we put our vault through its paces. It's like a rock tumbler for your database!
 
 ## Contribute 🤝
 Do you have ideas to make PebbleVault even better? Want to add more fun to our pebble party? Join us in making PebbleVault the best place for all your pebble-keeping needs! Check out our contributing guide and start throwing your ideas our way.
