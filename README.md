@@ -1,7 +1,10 @@
 # PebbleVault
 
-> [!CAUTION]
+> [!IMPORTANT]
 > PebbleVault is still in early development and is not meant to be used in any production environments yet.
+
+> [!CAUTION]
+> DOCS WARNING: The docs are no longer fully up-to-date, the API has been overhauled. We will be releasing updated usage docs soon!
 
 ![logo-no-background](https://github.com/Stars-Beyond/PebbleVault/assets/34868944/927902b2-1579-4e3a-9c92-93a0f9e47e3e)
 
