@@ -4,17 +4,33 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rstar::{AABB, RTree};
+use glutin_window::GlutinWindow as Window;
+use opengl_graphics::OpenGL;
+use piston::event_loop::{EventSettings, Events};
+use piston::input::*;
+use crate::barnes_hut::visualization::{create_window, App};
 
 /// Manages the spatial databases and Barnes-Hut simulations for different regions in the game world.
 pub struct BarnesHutManager {
     /// Map of region IDs to their corresponding Region structures
     pub regions: HashMap<Uuid, Arc<Mutex<BarnesHutRegion>>>,
     /// Connection to the persistent database
-    pub persistent_db: MySQLGeo::Database,
+    pub persistent_db: Arc<MySQLGeo::Database>,
     /// Barnes-Hut configuration
     pub barnes_hut_config: BarnesHutConfig,
     /// Octree size for Barnes-Hut simulations
     pub octree_size: f64,
+}
+
+impl Clone for BarnesHutManager {
+    fn clone(&self) -> Self {
+        BarnesHutManager {
+            regions: self.regions.clone(),
+            persistent_db: Arc::clone(&self.persistent_db),
+            barnes_hut_config: self.barnes_hut_config.clone(),
+            octree_size: self.octree_size,
+        }
+    }
 }
 
 impl BarnesHutManager {
@@ -27,7 +43,7 @@ impl BarnesHutManager {
         
         Ok(BarnesHutManager {
             regions: HashMap::new(),
-            persistent_db,
+            persistent_db: Arc::new(persistent_db),
             barnes_hut_config,
             octree_size,
         })
@@ -210,5 +226,42 @@ impl BarnesHutManager {
         } else {
             Err(format!("Simulation for region {} not found", region_id))
         }
+    }
+
+    /// Runs a visualization of the Barnes-Hut simulation for a specific region.
+    pub fn run_visualization(&mut self, region_id: Uuid) -> Result<(), String> {
+        let region = self.regions.get(&region_id)
+            .ok_or_else(|| format!("Region not found: {}", region_id))?;
+        let region_guard = region.lock().unwrap();
+        let (width, height) = (
+            (region_guard.center[0] * 2.0) as u32,
+            (region_guard.center[1] * 2.0) as u32
+        );
+        drop(region_guard);
+
+        let mut window: Window = create_window(width, height);
+        let mut app = App::new(OpenGL::V3_2, self.clone(), region_id);
+        let mut events = Events::new(EventSettings::new());
+        let mut mouse_xy = [0.0, 0.0];
+
+        while let Some(e) = events.next(&mut window) {
+            if let Some(Button::Mouse(_button)) = e.press_args() {
+                app.click(mouse_xy);
+            }
+
+            if let Some(args) = e.render_args() {
+                app.render(&args);
+            }
+
+            if let Some(args) = e.update_args() {
+                app.update(&args);
+            }
+
+            e.mouse_cursor(|pos| {
+                mouse_xy = pos;
+            });
+        }
+
+        Ok(())
     }
 }
