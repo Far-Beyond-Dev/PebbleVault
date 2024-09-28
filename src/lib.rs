@@ -13,8 +13,7 @@ pub use vault_manager::VaultManager;
 pub use barnes_hut_manager::BarnesHutManager;
 pub use barnes_hut::*;
 
-#[cfg(test)]
-mod tests;
+pub mod tests;
 
 #[cfg(test)]
 mod load_test;
