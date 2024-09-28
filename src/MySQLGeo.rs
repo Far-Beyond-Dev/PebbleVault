@@ -25,6 +25,17 @@ pub struct Point {
     pub data: Value,
 }
 
+/// Represents a region in the spatial database.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Region {
+    /// Unique identifier for the region
+    pub id: Uuid,
+    /// Center coordinates of the region [x, y, z]
+    pub center: [f64; 3],
+    /// Radius of the region
+    pub radius: f64,
+}
+
 /// Manages the connection to the SQLite database and provides methods for data manipulation.
 pub struct Database {
     conn: Connection,
@@ -64,7 +75,7 @@ impl Database {
         Ok(Database { conn })
     }
 
-    /// Creates the necessary table in the database if it doesn't exist.
+    /// Creates the necessary tables in the database if they don't exist.
     ///
     /// # Returns
     ///
@@ -76,7 +87,18 @@ impl Database {
                 x REAL NOT NULL,
                 y REAL NOT NULL,
                 z REAL NOT NULL,
-                dataFile TEXT NOT NULL
+                dataFile TEXT NOT NULL,
+                region_id TEXT
+            )",
+            [],
+        )?;
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS regions (
+                id TEXT PRIMARY KEY,
+                center_x REAL NOT NULL,
+                center_y REAL NOT NULL,
+                center_z REAL NOT NULL,
+                radius REAL NOT NULL
             )",
             [],
         )?;
@@ -134,6 +156,138 @@ impl Database {
         )?;
         
         let points_iter = stmt.query_map(params![x1, y1, z1, radius_sq], |row| {
+            let id: String = row.get(0)?;
+            let x: f64 = row.get(1)?;
+            let y: f64 = row.get(2)?;
+            let z: f64 = row.get(3)?;
+            let data_file: String = row.get(4)?;
+            
+            let data_str = fs::read_to_string(&data_file)
+                .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
+            let data: Value = serde_json::from_str(&data_str)
+                .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
+            
+            Ok(Point {
+                id: Some(Uuid::parse_str(&id).unwrap()),
+                x,
+                y,
+                z,
+                data,
+            })
+        })?;
+        
+        let mut points = Vec::new();
+        for point in points_iter {
+            points.push(point?);
+        }
+        
+        Ok(points)
+    }
+
+    /// Creates a new region in the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `region_id` - UUID of the region to create.
+    /// * `center` - Center coordinates of the region.
+    /// * `radius` - Radius of the region.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or an error.
+    pub fn create_region(&self, region_id: Uuid, center: [f64; 3], radius: f64) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO regions (id, center_x, center_y, center_z, radius) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![region_id.to_string(), center[0], center[1], center[2], radius],
+        )?;
+        Ok(())
+    }
+
+    /// Removes a point from the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `point_id` - UUID of the point to remove.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or an error.
+    pub fn remove_point(&self, point_id: Uuid) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM points WHERE id = ?1",
+            params![point_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Updates the position of a point in the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `point_id` - UUID of the point to update.
+    /// * `x` - New X-coordinate of the point.
+    /// * `y` - New Y-coordinate of the point.
+    /// * `z` - New Z-coordinate of the point.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or an error.
+    pub fn update_point_position(&self, point_id: Uuid, x: f64, y: f64, z: f64) -> SqlResult<()> {
+        self.conn.execute(
+            "UPDATE points SET x = ?1, y = ?2, z = ?3 WHERE id = ?4",
+            params![x, y, z, point_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Retrieves all regions from the database.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a vector of regions or an error.
+    pub fn get_all_regions(&self) -> SqlResult<Vec<Region>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, center_x, center_y, center_z, radius FROM regions",
+        )?;
+        
+        let regions_iter = stmt.query_map([], |row| {
+            let id: String = row.get(0)?;
+            let center_x: f64 = row.get(1)?;
+            let center_y: f64 = row.get(2)?;
+            let center_z: f64 = row.get(3)?;
+            let radius: f64 = row.get(4)?;
+            
+            Ok(Region {
+                id: Uuid::parse_str(&id).unwrap(),
+                center: [center_x, center_y, center_z],
+                radius,
+            })
+        })?;
+        
+        let mut regions = Vec::new();
+        for region in regions_iter {
+            regions.push(region?);
+        }
+        
+        Ok(regions)
+    }
+
+    /// Retrieves all points within a specified region from the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `region_id` - UUID of the region to query.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a vector of points or an error.
+    pub fn get_points_in_region(&self, region_id: Uuid) -> SqlResult<Vec<Point>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, x, y, z, dataFile FROM points
+             WHERE region_id = ?1",
+        )?;
+        
+        let points_iter = stmt.query_map(params![region_id.to_string()], |row| {
             let id: String = row.get(0)?;
             let x: f64 = row.get(1)?;
             let y: f64 = row.get(2)?;
