@@ -1,216 +1,102 @@
 # PebbleVault
 
-> [!CAUTION]
+> [!IMPORTANT]
 > PebbleVault is still in early development and is not meant to be used in any production environments yet.
 
 ![logo-no-background](https://github.com/Stars-Beyond/PebbleVault/assets/34868944/927902b2-1579-4e3a-9c92-93a0f9e47e3e)
 
 ---
-Welcome to PebbleVault, the spatial database that rocks your world! 🚀 Imagine a universe where pebbles are more than just tiny stones; they're the building blocks of your galactic data dreams. PebbleVault is a spatial database with a SQLite twist, all wrapped up in the cozy, memory-safe blanket of Rust. It's like having a pet rock collection, but for grown-ups with serious spatial data needs!
+Welcome to PebbleVault, the spatial database that rocks your world! 🚀 PebbleVault is a high-performance spatial database written in Rust, designed for managing 3D spatial data with efficiency and safety in mind.
 
 ## Why PebbleVault? 🌟
-- **Speed**: With in-memory storage and spatial indexing, your pebbles are accessible at light speed.
-- **Safety**: Thanks to Rust, your data is as safe as pebbles in a vault. No more worrying about memory leaks or data corruption.
-- **Flexibility**: Easily manage regions and objects in 3D space. It's like juggling pebbles, but with fewer dropped rocks and more data integrity.
-- **Persistence**: Throw your pebbles to SQLite when you need more permanent storage. It's like creating your own little rock garden, but for data!
-- **Simplicity**: Simple operations to add, query, and transfer objects make managing your spatial data as easy as skipping stones on a serene pond.
+- **Speed**: In-memory storage with RTree spatial indexing for lightning-fast queries.
+- **Safety**: Leveraging Rust's memory safety guarantees for robust and reliable operations.
+- **Flexibility**: Easily manage regions and objects in 3D space with a simple yet powerful API.
+- **Persistence**: Seamless integration with a persistent storage backend for durable data storage.
+- **Simplicity**: Intuitive operations to add, query, and manage objects in your spatial universe.
 
 ## Key Features 🎉
-- **Spatial Indexing**: Keep your pebbles organized in a 3D space for ultra-fast access.
-- **Region Management**: Create and manage multiple regions in your vast data universe.
-- **SQLite Persistence**: Store your pebble collection for the long term, ensuring your data stays solid as a rock.
-- **Rust Reliability**: Built with Rust, so your pebbles are safe and sound, protected from the elements (and by elements, we mean bugs).
+- **Spatial Indexing**: Utilizes RTree for efficient 3D spatial querying.
+- **Region Management**: Create and manage multiple spatial regions.
+- **Persistent Storage**: Store your spatial data for long-term preservation.
+- **Rust Reliability**: Built with Rust for maximum performance and safety.
 
-## Operations 🔧
+## Core Components 🧱
 
-### Create or Load Region
-Create a new region or load an existing one from the persistent database.
+### VaultManager (lib.rs)
+The VaultManager is the central component of PebbleVault, orchestrating all spatial operations.
+
+Key features:
+- **Region Creation**: Create new regions or load existing ones from persistent storage.
+- **Object Management**: Add, query, and manage objects within regions.
+- **In-Memory Storage**: Uses RTree for high-speed spatial indexing.
+- **Persistence**: Periodically saves spatial data to persistent storage.
+
+## API Overview 🛠️
+
+### VaultManager Operations
 
 ```rust
-let region_id = vault_manager.create_or
+// Create a new VaultManager
+let vault_manager = VaultManager::new("path/to/database")?;
+
+// Create or load a region
+let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
+
+// Add an object to a region
+vault_manager.add_object(region_id, object_uuid, 10.0, 20.0, 30.0, "Object data")?;
+
+// Query objects in a region
+let objects = vault_manager.query_region(region_id, -50.0, -50.0, -50.0, 50.0, 50.0, 50.0)?;
+
+// Save all data to persistent storage
+vault_manager.persist_to_disk()?;
 ```
 
-### Collect (Insert Data)
-Store a pebble (data object) in memory.
+## Example Usage 🚀
 
-```rs
-vault.collect("gem", "my_precious_pebble", r#"{
-    "name": "Ruby",
-    "color": "Red",
-    "carat": 1.5
-}"#);
+```rust
+use pebblevault::{VaultManager, SpatialObject};
+use uuid::Uuid;
+
+// Create a new VaultManager
+let mut vault_manager = VaultManager::new("spatial_db.pv")?;
+
+// Create a new region
+let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 500.0)?;
+
+// Add some objects to our collection
+let object1_uuid = Uuid::new_v4();
+vault_manager.add_object(region_id, object1_uuid, 10.0, 20.0, 30.0, "First object")?;
+
+let object2_uuid = Uuid::new_v4();
+vault_manager.add_object(region_id, object2_uuid, -15.0, 25.0, -5.0, "Second object")?;
+
+// Find objects in a specific area
+let found_objects = vault_manager.query_region(region_id, -20.0, 0.0, -10.0, 20.0, 30.0, 40.0)?;
+println!("Found {} objects in the area!", found_objects.len());
+
+// Save our spatial data collection
+vault_manager.persist_to_disk()?;
+
+println!("Our spatial data is safely stored!");
 ```
 
-### Throw (Persist Data)
-Send a pebble to MySQL for long-term storage.
+## Load Testing 🏋️‍♂️
+PebbleVault includes a built-in load testing module to ensure optimal performance under various conditions. The `run_load_test` function in `load_test.rs` allows you to stress-test the system with a large number of objects across multiple regions.
 
-```rs
-vault.throw("gem", "my_precious_pebble");
-```
+Here's a brief overview of what the load test does:
 
-### Drop (Delete Data)
-Remove a pebble from memory or disk.
+1. Creates a specified number of regions.
+2. Adds a large number of randomly positioned objects across these regions.
+3. Persists all data to disk.
+4. Creates a new VaultManager instance to verify data persistence.
+5. Retrieves all objects to ensure they were correctly stored and can be queried.
 
-```rs
-vault.drop("gem", "my_precious_pebble");
-```
-
-### Skim (Read Data)
-Retrieve a pebble from memory or disk.
-
-```rs
-let data = vault.skim("gem", "my_precious_pebble");
-```
-
-### PebbleStack (Create Table)
-Create a new table (or collection) of pebbles.
-
-```rs
-vault.pebblestack("gem", "my_pebble_stack");
-```
-
-### PebbleDump (Bulk Insert)
-Add multiple pebbles at once.
-
-```rs
-let data1 = r#"{
-    "name": "Sapphire",
-    "color": "Blue",
-    "carat": 2.5
-}"#;
-
-let data2 = r#"{
-    "name": "Emerald",
-    "color": "Green",
-    "carat": 1.8
-}"#;
-
-let data3 = r#"{
-    "name": "Topaz",
-    "color": "Yellow",
-    "carat": 3.0
-}"#;
-
-vault.pebbledump("gem", "my_pebble_stack", vec![data1, data2, data3]);
-```
-
-### PebbleShift (Update Data)
-Update an existing pebble's data.
-
-```rs
-vault.pebbleshift("gem", "my_precious_pebble", r#"{
-    "carat": 2.0
-}"#);
-```
-
-### PebbleSift (Query Data)
-Filter and find specific pebbles.
-
-```rs
-let results = vault.pebblesift("gem", "my_pebble_stack", r#"{
-    "color": "Red"
-}"#);
-```
-
-### PebblePatch (Patch Data)
-Partially update a pebble's data.
-
-```rs
-vault.pebblepatch("gem", "my_precious_pebble", r#"{
-    "color": "Deep Red"
-}"#);
-```
-
-### PebbleFlow (Transaction)
-Ensure atomic operations.
-
-```rs
-vault.pebbleflow(|txn| {
-    txn.collect("gem", "pebble1", data1);
-    txn.collect("gem", "pebble2", data2);
-    txn.throw("gem", "pebble1");
-    txn.drop("gem", "pebble2");
-});
-```
-
-### PebbleSquash (Delete Table)
-Remove an entire table (or collection) of pebbles.
-
-```rs
-vault.pebblesquash("gem", "my_pebble_stack");
-```
-
-## Installation 🛠️
-To get started with PebbleVault, just run:
-```sh
-cargo install pebblevault
-```
-
-## Example Usage
-
-```rs
-use pebblevault::Vault;
-
-let vault = Vault::new();
-
-// Define a class of pebbles
-vault.define_class("gem", r#"{
-    "name": "string",
-    "color": "string",
-    "carat": "float"
-}"#);
-
-// Create a new table (or collection) of pebbles
-vault.pebblestack("gem", "my_pebble_stack");
-
-// Insert data into the vault
-vault.collect("gem", "my_precious_pebble", r#"{
-    "name": "Ruby",
-    "color": "Red",
-    "carat": 1.5
-}"#);
-
-// Bulk insert multiple pebbles
-vault.pebbledump("gem", "my_pebble_stack", vec![data1, data2, data3]);
-
-// Query the vault to find specific pebbles
-let results = vault.pebblesift("gem", "my_pebble_stack", r#"{
-    "color": "Red"
-}"#);
-
-// Update an existing pebble's data
-vault.pebbleshift("gem", "my_precious_pebble", r#"{
-    "carat": 2.0
-}"#);
-
-// Partially update a pebble's data
-vault.pebblepatch("gem", "my_precious_pebble", r#"{
-    "color": "Deep Red"
-}"#);
-
-// Retrieve data from the vault
-let data = vault.skim("gem", "my_precious_pebble");
-
-// Persist data to MySQL
-vault.throw("gem", "my_precious_pebble");
-
-// Remove data from the vault
-vault.drop("gem", "my_precious_pebble");
-
-// Ensure atomic operations with a transaction
-vault.pebbleflow(|txn| {
-    txn.collect("gem", "pebble1", data1);
-    txn.collect("gem", "pebble2", data2);
-    txn.throw("gem", "pebble1");
-    txn.drop("gem", "pebble2");
-});
-
-// Delete an entire table (or collection) of pebbles
-vault.pebblesquash("gem", "my_pebble_stack");
-```
+This load test helps verify the system's performance, persistence capabilities, and ability to handle large datasets.
 
 ## Contribute 🤝
-Do you have ideas to make PebbleVault even better? Want to add more fun to our pebble party? Join us in making PebbleVault the best place for all your pebble-keeping needs! Check out our contributing guide and start throwing your ideas our way.
+We welcome contributions to make PebbleVault even better! If you have ideas for improvements or new features, please check out our contributing guide and join our community of spatial data enthusiasts.
 
 ## License 📜
-PebbleVault is licensed under the Apache 2.0 License. Rock on! 🤘
+PebbleVault is licensed under the Apache 2.0 License. Explore the spatial universe with confidence! 🌠
