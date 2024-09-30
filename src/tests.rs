@@ -1,5 +1,4 @@
 use super::*;
-use std::fs;
 use tempfile::tempdir;
 use uuid::Uuid;
 
