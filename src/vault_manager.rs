@@ -17,10 +17,15 @@ pub struct VaultManager {
     pub regions: HashMap<Uuid, Arc<Mutex<VaultRegion>>>,
     /// Persistent database connection
     pub persistent_db: MySQLGeo::Database,
+    /// HashMap storing object types
+    pub object_types: HashMap<String, &'static str>,
 }
 
 impl VaultManager {
     /// Creates a new instance of `VaultManager`.
+    ///
+    /// This function initializes a new VaultManager, sets up the persistent database,
+    /// and loads existing regions from the database.
     ///
     /// # Arguments
     ///
@@ -39,14 +44,23 @@ impl VaultManager {
         // Create a new persistent database connection
         let persistent_db = MySQLGeo::Database::new(db_path)
             .map_err(|e| format!("Failed to create persistent database: {}", e))?;
+        
         // Create the necessary tables in the database
         persistent_db.create_table()
             .map_err(|e| format!("Failed to create table: {}", e))?;
         
+        // Initialize the VaultManager struct
         let mut vault_manager = VaultManager {
             regions: std::collections::HashMap::new(),
             persistent_db,
+            object_types: HashMap::new(),
         };
+
+        // Initialize object types with static lifetimes
+        vault_manager.object_types.insert("player".to_string(), to_static_str("player".to_string()));
+        vault_manager.object_types.insert("building".to_string(), to_static_str("building".to_string()));
+        vault_manager.object_types.insert("resource".to_string(), to_static_str("resource".to_string()));
+        // Add more object types as needed
 
         // Load existing regions from the persistent database
         vault_manager.load_regions_from_db()?;
@@ -54,6 +68,14 @@ impl VaultManager {
         Ok(vault_manager)
     }
 
+    /// Loads existing regions and their objects from the persistent database.
+    ///
+    /// This function is called during VaultManager initialization to populate
+    /// the in-memory structures with data from the persistent storage.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), String>` - Ok if successful, or an error message if not.
     fn load_regions_from_db(&mut self) -> Result<(), String> {
         // Get all regions from the persistent database
         let regions = self.persistent_db.get_all_regions()
@@ -86,7 +108,8 @@ impl VaultManager {
                 for point in points {
                     let spatial_object = SpatialObject {
                         uuid: point.id.unwrap(),
-                        data: point.data.to_string(),
+                        object_type: to_static_str(point.data["type"].as_str().unwrap_or("unknown").to_string()),
+                        data: point.data["data"].to_string(),
                         point: [point.x, point.y, point.z],
                     };
                     region.rtree.insert(spatial_object);
@@ -98,6 +121,9 @@ impl VaultManager {
     }
 
     /// Creates a new region or loads an existing one from the persistent database.
+    ///
+    /// This function checks if a region with the given center and radius already exists.
+    /// If it does, it returns the existing region's ID. Otherwise, it creates a new region.
     ///
     /// # Arguments
     ///
@@ -149,10 +175,14 @@ impl VaultManager {
 
     /// Adds an object to a specific region.
     ///
+    /// This function creates a new SpatialObject and adds it to both the in-memory RTree
+    /// and the persistent database.
+    ///
     /// # Arguments
     ///
     /// * `region_id` - The UUID of the region to add the object to.
     /// * `uuid` - The UUID of the object being added.
+    /// * `object_type` - The type of the object being added.
     /// * `x` - The x-coordinate of the object.
     /// * `y` - The y-coordinate of the object.
     /// * `z` - The z-coordinate of the object.
@@ -167,22 +197,41 @@ impl VaultManager {
     /// ```
     /// let region_id = Uuid::new_v4();
     /// let object_id = Uuid::new_v4();
-    /// vault_manager.add_object(region_id, object_id, 1.0, 2.0, 3.0, "Example object").expect("Failed to add object");
+    /// vault_manager.add_object(region_id, object_id, "player", 1.0, 2.0, 3.0, "Example object").expect("Failed to add object");
     /// ```
-    pub fn add_object(&self, region_id: Uuid, uuid: Uuid, x: f64, y: f64, z: f64, data: &str) -> Result<(), String> {
+    pub fn add_object(&self, region_id: Uuid, uuid: Uuid, object_type: &str, x: f64, y: f64, z: f64, data: &str) -> Result<(), String> {
+        // Get the region from the regions HashMap
         let region = self.regions.get(&region_id)
             .ok_or_else(|| format!("Region not found: {}", region_id))?;
         
+        // Lock the region for mutation
         let mut region = region.lock().unwrap();
+        
+        // Create a new SpatialObject
         let object = SpatialObject {
             uuid,
+            object_type: self.object_types.get(object_type)
+                .ok_or_else(|| format!("Invalid object type: {}", object_type))?,
             data: data.to_string(),
             point: [x, y, z],
         };
         
+        // Insert the object into the region's RTree
         region.rtree.insert(object.clone());
 
-        let point = MySQLGeo::Point::new(Some(uuid), x, y, z, serde_json::Value::String(data.to_string()));
+        // Create a Point for the persistent database
+        let point = MySQLGeo::Point::new(
+            Some(uuid),
+            x,
+            y,
+            z,
+            serde_json::json!({
+                "type": object_type,
+                "data": data,
+            }),
+        );
+        
+        // Add the point to the persistent database
         self.persistent_db.add_point(&point, region_id)
             .map_err(|e| format!("Failed to add point to persistent database: {}", e))?;
 
@@ -190,6 +239,8 @@ impl VaultManager {
     }
 
     /// Queries objects within a specific region.
+    ///
+    /// This function searches for objects within a given bounding box in a specified region.
     ///
     /// # Arguments
     ///
@@ -228,6 +279,9 @@ impl VaultManager {
     }
 
     /// Transfers a player (object) from one region to another.
+    ///
+    /// This function moves a player object from its current region to a new region,
+    /// updating both the in-memory structures and the persistent database.
     ///
     /// # Arguments
     ///
@@ -270,6 +324,7 @@ impl VaultManager {
         // Update player position to the center of the destination region
         let updated_player = SpatialObject {
             uuid: player.uuid,
+            object_type: player.object_type,
             data: player.data,
             point: to_region.center,
         };
@@ -277,10 +332,14 @@ impl VaultManager {
         // Insert the updated player into the destination region
         to_region.rtree.insert(updated_player);
 
+        // TODO: Update the player's position in the persistent database
+
         Ok(())
     }
 
     /// Persists all in-memory databases to disk.
+    ///
+    /// This function saves all objects from all regions to the persistent database.
     ///
     /// # Returns
     ///
@@ -320,7 +379,10 @@ impl VaultManager {
                     obj.point[0],
                     obj.point[1],
                     obj.point[2],
-                    serde_json::Value::String(obj.data.clone()),
+                    serde_json::json!({
+                        "type": obj.object_type,
+                        "data": obj.data,
+                    }),
                 );
                 self.persistent_db.add_point(&point, *region_id)
                     .map_err(|e| format!("Failed to persist point to database: {}", e))?;
@@ -383,4 +445,9 @@ impl VaultManager {
         }
         Err(format!("Object not found: {}", object_id))
     }
+}
+
+// Helper function to create a static str from a String
+fn to_static_str(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
 }

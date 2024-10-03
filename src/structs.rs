@@ -1,7 +1,6 @@
 //! # PebbleVault Structures
 //!
 //! This module defines the core structures used in the PebbleVault spatial database system
-//! and the Barnes-Hut simulation for N-body problems.
 
 use rstar::*;
 use std::sync::{Arc, Mutex};
@@ -13,6 +12,8 @@ use uuid::Uuid;
 pub struct SpatialObject {
     /// Unique identifier for the object
     pub uuid: Uuid,
+    /// Type of the object (e.g., player, building, resource)
+    pub object_type: &'static str,
     /// Associated data with the object (e.g., player info, item details)
     pub data: String,
     /// 3D coordinates of the object [x, y, z]
@@ -35,6 +36,7 @@ impl PointDistance for SpatialObject {
     /// ```rust
     /// let object = SpatialObject {
     ///     uuid: Uuid::new_v4(),
+    ///     object_type: "player",
     ///     data: "Example object".to_string(),
     ///     point: [1.0, 2.0, 3.0],
     /// };
@@ -65,6 +67,7 @@ impl RTreeObject for SpatialObject {
     /// ```rust
     /// let object = SpatialObject {
     ///     uuid: Uuid::new_v4(),
+    ///     object_type: "player",
     ///     data: "Example object".to_string(),
     ///     point: [1.0, 2.0, 3.0],
     /// };

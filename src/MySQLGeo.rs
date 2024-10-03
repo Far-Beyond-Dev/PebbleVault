@@ -5,7 +5,7 @@
 //! for larger data objects associated with each point.
 
 use rusqlite::{params, Connection, Result as SqlResult};
-use serde_json::{self, Value};
+use serde_json::{self, Value, json};
 use serde::{Serialize, Deserialize};
 use std::fs;
 use uuid::Uuid;
@@ -108,7 +108,8 @@ impl Database {
                 y REAL NOT NULL,
                 z REAL NOT NULL,
                 dataFile TEXT NOT NULL,
-                region_id TEXT
+                region_id TEXT,
+                object_type TEXT NOT NULL
             )",
             [],
         )?;
@@ -146,9 +147,9 @@ impl Database {
     /// ```
     pub fn add_point(&self, point: &Point, region_id: Uuid) -> SqlResult<()> {
         let id = point.id.unwrap_or_else(Uuid::new_v4).to_string();
-        // Remove the following line:
-        // println!("Adding point with ID: {} to region: {}", id, region_id);
-        let data_str = serde_json::to_string(&point.data)
+        let data_value = point.data.as_object().unwrap();
+        let object_type = data_value.get("type").and_then(Value::as_str).unwrap_or("unknown");
+        let data_str = serde_json::to_string(&data_value.get("data").unwrap())
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
         let folder_name: String = id.chars().take(2).collect();
@@ -161,8 +162,8 @@ impl Database {
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
         self.conn.execute(
-            "INSERT OR REPLACE INTO points (id, x, y, z, dataFile, region_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![id, point.x, point.y, point.z, &file_path, region_id.to_string()],
+            "INSERT OR REPLACE INTO points (id, x, y, z, dataFile, region_id, object_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![id, point.x, point.y, point.z, &file_path, region_id.to_string(), object_type],
         )?;
         
         Ok(())
@@ -190,23 +191,20 @@ impl Database {
     /// }
     /// ```
     pub fn get_points_within_radius(&self, x1: f64, y1: f64, z1: f64, radius: f64) -> SqlResult<Vec<Point>> {
-        // Calculate the squared radius for efficient distance comparison
         let radius_sq = radius * radius;
-        // Prepare the SQL query
         let mut stmt = self.conn.prepare(
-            "SELECT id, x, y, z, dataFile FROM points
+            "SELECT id, x, y, z, dataFile, object_type FROM points
              WHERE ((x - ?1) * (x - ?1) + (y - ?2) * (y - ?2) + (z - ?3) * (z - ?3)) <= ?4",
         )?;
         
-        // Execute the query and map the results to Point objects
         let points_iter = stmt.query_map(params![x1, y1, z1, radius_sq], |row| {
             let id: String = row.get(0)?;
             let x: f64 = row.get(1)?;
             let y: f64 = row.get(2)?;
             let z: f64 = row.get(3)?;
             let data_file: String = row.get(4)?;
+            let object_type: String = row.get(5)?;
             
-            // Read data from file
             let data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             let data: Value = serde_json::from_str(&data_str)
@@ -217,11 +215,13 @@ impl Database {
                 x,
                 y,
                 z,
-                data,
+                data: json!({
+                    "type": object_type,
+                    "data": data,
+                }),
             })
         })?;
         
-        // Collect the results into a vector
         let mut points = Vec::new();
         for point in points_iter {
             points.push(point?);
@@ -377,7 +377,7 @@ impl Database {
     /// ```
     pub fn get_points_in_region(&self, region_id: Uuid) -> SqlResult<Vec<Point>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, x, y, z, dataFile FROM points WHERE region_id = ?1",
+            "SELECT id, x, y, z, dataFile, object_type FROM points WHERE region_id = ?1",
         )?;
         
         let points_iter = stmt.query_map(params![region_id.to_string()], |row| {
@@ -386,6 +386,7 @@ impl Database {
             let y: f64 = row.get(2)?;
             let z: f64 = row.get(3)?;
             let data_file: String = row.get(4)?;
+            let object_type: String = row.get(5)?;
             
             let data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
@@ -397,7 +398,10 @@ impl Database {
                 x,
                 y,
                 z,
-                data,
+                data: json!({
+                    "type": object_type,
+                    "data": data,
+                }),
             })
         })?;
         
