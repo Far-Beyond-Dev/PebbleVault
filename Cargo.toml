@@ -2,7 +2,7 @@
 name = "PebbleVault"
 description = "A high performance data storage solution written in rust"
 license = "Apache-2.0"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 [build]
@@ -21,9 +21,5 @@ lazy_static = "1.5.0"
 rstar = "0.12.0"
 tempfile = "3.12.0"
 rand = "0.8.5"
-config = "0.13.0"
-
-piston = "0.53.0"
-piston2d-graphics = "0.42.0"
-pistoncore-glutin_window = "0.69.0"
-piston2d-opengl_graphics = "0.81.0"
+colored = "2.0"
+indicatif = "0.17.0"

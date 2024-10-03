@@ -1,8 +1,0 @@
-[octree]
-# Size of the parent node in meters (1 light year)
-parent_node_size = 9.461e15
-
-[barnes_hut]
-theta = 0.5  # Barnes-Hut approximation parameter
-dt = 86400.0  # Time step for the simulation (1 day in seconds)
-epsilon = 1e6  # Softening parameter to prevent division by zero (in meters)
