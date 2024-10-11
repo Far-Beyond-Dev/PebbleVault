@@ -5,7 +5,7 @@
 //! for larger data objects associated with each point.
 
 use rusqlite::{params, Connection, Result as SqlResult};
-use serde_json::{self, Value, json};
+use serde_json::{self, Value};
 use serde::{Serialize, Deserialize};
 use std::fs;
 use uuid::Uuid;
@@ -21,8 +21,10 @@ pub struct Point {
     pub y: f64,
     /// Z-coordinate
     pub z: f64,
-    /// Associated data with the point
-    pub data: Value,
+    /// Object type
+    pub object_type: String,
+    /// Custom data associated with the point
+    pub custom_data: Value,
 }
 
 /// Represents a region in the spatial database.
@@ -50,7 +52,8 @@ impl Point {
     /// * `x` - X-coordinate of the point.
     /// * `y` - Y-coordinate of the point.
     /// * `z` - Z-coordinate of the point.
-    /// * `data` - Associated data with the point.
+    /// * `object_type` - Object type of the point.
+    /// * `custom_data` - Custom data associated with the point.
     ///
     /// # Returns
     ///
@@ -59,10 +62,10 @@ impl Point {
     /// # Examples
     ///
     /// ```
-    /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, json!({"name": "Example Point"}));
+    /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// ```
-    pub fn new(id: Option<Uuid>, x: f64, y: f64, z: f64, data: Value) -> Self {
-        Point { id, x, y, z, data }
+    pub fn new(id: Option<Uuid>, x: f64, y: f64, z: f64, object_type: String, custom_data: Value) -> Self {
+        Point { id, x, y, z, object_type, custom_data }
     }
 }
 
@@ -141,15 +144,13 @@ impl Database {
     /// # Examples
     ///
     /// ```
-    /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, json!({"name": "Example Point"}));
+    /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// let region_id = Uuid::new_v4();
     /// db.add_point(&point, region_id).expect("Failed to add point");
     /// ```
     pub fn add_point(&self, point: &Point, region_id: Uuid) -> SqlResult<()> {
         let id = point.id.unwrap_or_else(Uuid::new_v4).to_string();
-        let data_value = point.data.as_object().unwrap();
-        let object_type = data_value.get("type").and_then(Value::as_str).unwrap_or("unknown");
-        let data_str = serde_json::to_string(&data_value.get("data").unwrap())
+        let custom_data_str = serde_json::to_string(&point.custom_data)
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
         let folder_name: String = id.chars().take(2).collect();
@@ -158,12 +159,12 @@ impl Database {
         fs::create_dir_all(format!("./data/{}", folder_name))
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
-        fs::write(&file_path, &data_str)
+        fs::write(&file_path, &custom_data_str)
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
         self.conn.execute(
             "INSERT OR REPLACE INTO points (id, x, y, z, dataFile, region_id, object_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, point.x, point.y, point.z, &file_path, region_id.to_string(), object_type],
+            params![id, point.x, point.y, point.z, &file_path, region_id.to_string(), &point.object_type],
         )?;
         
         Ok(())
@@ -205,9 +206,9 @@ impl Database {
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
             
-            let data_str = fs::read_to_string(&data_file)
+            let custom_data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
-            let data: Value = serde_json::from_str(&data_str)
+            let custom_data: Value = serde_json::from_str(&custom_data_str)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             
             Ok(Point {
@@ -215,10 +216,8 @@ impl Database {
                 x,
                 y,
                 z,
-                data: json!({
-                    "type": object_type,
-                    "data": data,
-                }),
+                object_type,
+                custom_data,
             })
         })?;
         
@@ -388,9 +387,9 @@ impl Database {
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
             
-            let data_str = fs::read_to_string(&data_file)
+            let custom_data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
-            let data: Value = serde_json::from_str(&data_str)
+            let custom_data: Value = serde_json::from_str(&custom_data_str)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             
             Ok(Point {
@@ -398,10 +397,8 @@ impl Database {
                 x,
                 y,
                 z,
-                data: json!({
-                    "type": object_type,
-                    "data": data,
-                }),
+                object_type,
+                custom_data,
             })
         })?;
         
