@@ -34,7 +34,7 @@ use rand::distributions::{Distribution, Standard};
 /// This struct represents a complex game object with various attributes,
 /// used to simulate custom data in the load testing scenarios.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
-struct LoadTestData {
+pub struct LoadTestData {
     name: String,
     level: u32,
     health: f32,
@@ -44,7 +44,7 @@ struct LoadTestData {
 
 impl LoadTestData {
     /// Creates a new LoadTestData instance with random values
-    fn new_random() -> Self {
+    pub fn new_random() -> Self {
         let mut rng = rand::thread_rng();
         LoadTestData {
             name: format!("Object_{}", rng.gen::<u32>()),
