@@ -58,6 +58,7 @@ use rstar::{RTree, AABB};
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Serialize, Deserialize};
 use crate::MySQLGeo::Point;
+use ez_logging::println;
 
 /// Manages spatial regions and objects within a persistent database.
 ///
