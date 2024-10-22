@@ -58,7 +58,6 @@ use rstar::{RTree, AABB};
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Serialize, Deserialize};
 use crate::MySQLGeo::Point;
-use ez_logging::println;
 
 /// Manages spatial regions and objects within a persistent database.
 ///
@@ -74,6 +73,7 @@ use ez_logging::println;
 ///
 /// * `T`: The type of custom data associated with spatial objects. Must implement `Clone`, `Serialize`,
 ///        `Deserialize`, and `PartialEq`.
+#[derive(Debug)]
 pub struct VaultManager<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// HashMap storing regions, keyed by their UUID
     pub regions: HashMap<Uuid, Arc<Mutex<VaultRegion<T>>>>,
