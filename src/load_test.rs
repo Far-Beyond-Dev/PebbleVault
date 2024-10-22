@@ -28,6 +28,7 @@ use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use std::fmt::Debug;
 use rand::distributions::{Distribution, Standard};
+use ez_logging::println;
 
 /// Custom data structure for load testing
 ///
