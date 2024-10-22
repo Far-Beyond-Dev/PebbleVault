@@ -40,6 +40,7 @@ pub struct Region {
 }
 
 /// Manages the connection to the SQLite database and provides methods for data manipulation.
+#[derive(Debug)]
 pub struct Database {
     conn: Connection,
 }

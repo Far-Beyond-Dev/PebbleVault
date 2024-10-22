@@ -96,7 +96,7 @@ use uuid::Uuid;
 ///     custom_data: Arc::new("Gold Ore".to_string()),
 /// };
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct SpatialObject<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// Unique identifier for the object
     pub uuid: Uuid,
@@ -217,6 +217,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> RTree
 ///
 /// Note that the custom data type `T` is associated with the `SpatialObject`s
 /// that will be stored in this region, not with the region itself.
+#[derive(Debug)]
 pub struct VaultRegion<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// Unique identifier for the region
     pub id: Uuid,
