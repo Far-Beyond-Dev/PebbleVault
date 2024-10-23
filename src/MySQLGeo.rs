@@ -9,7 +9,6 @@ use serde_json::{self, Value};
 use serde::{Serialize, Deserialize};
 use std::fs;
 use uuid::Uuid;
-use ez_logging::println;
 
 /// Represents a spatial point with associated data.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
