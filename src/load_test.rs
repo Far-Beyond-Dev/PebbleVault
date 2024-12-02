@@ -75,7 +75,7 @@ fn format_duration(duration: Duration) -> String {
 
 /// Performs an extensive load test on the PebbleVault system.
 ///
-/// This function creates multiple regions, adds objects with custom data, persists data, loads it,
+/// This function creates multiple cubic regions, adds objects with custom data, persists data, loads it,
 /// deletes objects, and re-adds them to stress test the system thoroughly. It simulates
 /// a high-load scenario that might be encountered in a real-world application, with a focus
 /// on custom data integrity.
@@ -116,8 +116,8 @@ pub fn run_load_test(vault_manager: &mut VaultManager<LoadTestData>, num_objects
             let mut regions = existing_regions;
             for i in regions.len()..num_regions {
                 let center = [i as f64 * 1000.0, 0.0, 0.0];
-                let radius = 500.0;
-                let region_id = vault_manager.create_or_load_region(center, radius)?;
+                let size = 500.0;
+                let region_id = vault_manager.create_or_load_region(center, size)?;
                 regions.push(region_id);
             }
             regions
@@ -268,7 +268,7 @@ pub fn run_load_test(vault_manager: &mut VaultManager<LoadTestData>, num_objects
 
     // Test retrieval of players within a radius
     println!("\n{}", "Testing retrieval of players within a radius".blue());
-    test_retrieve_players_within_radius(vault_manager, &regions)?;
+    test_retrieve_players_in_area(vault_manager, &regions)?;
 
     // Calculate and print final statistics
     let duration = start_time.elapsed();
@@ -350,7 +350,7 @@ fn test_custom_data_operations(vault_manager: &mut VaultManager<LoadTestData>, o
 /// # Returns
 ///
 /// * `Result<(), String>` - Ok if the retrieval is successful, or an error message if it fails.
-fn test_retrieve_players_within_radius(vault_manager: &VaultManager<LoadTestData>, regions: &[Uuid]) -> Result<(), String> {
+fn test_retrieve_players_in_area(vault_manager: &VaultManager<LoadTestData>, regions: &[Uuid]) -> Result<(), String> {
     let mut rng = rand::thread_rng();
     // Select a random region
     let test_region = regions[rng.gen_range(0..regions.len())];
@@ -358,17 +358,21 @@ fn test_retrieve_players_within_radius(vault_manager: &VaultManager<LoadTestData
     let center_x = rng.gen_range(-500.0..500.0);
     let center_y = rng.gen_range(-500.0..500.0);
     let center_z = rng.gen_range(-500.0..500.0);
-    let radius = 200.0;
+    let area_size = 200.0;  // Size of the cubic area to search
 
-    println!("Retrieving players within a radius of {} from point [{}, {}, {}] in region {}", 
-             radius, center_x, center_y, center_z, test_region);
+    println!("Retrieving players within a {}x{}x{} cube centered at [{}, {}, {}] in region {}", 
+             area_size, area_size, area_size, center_x, center_y, center_z, test_region);
 
     let start_time = Instant::now();
-    // Query the region for objects within the specified radius
+    // Query the region for objects within the specified cubic area
     let objects = vault_manager.query_region(
         test_region, 
-        center_x - radius, center_y - radius, center_z - radius,
-        center_x + radius, center_y + radius, center_z + radius
+        center_x - area_size/2.0, 
+        center_y - area_size/2.0, 
+        center_z - area_size/2.0,
+        center_x + area_size/2.0, 
+        center_y + area_size/2.0, 
+        center_z + area_size/2.0
     )?;
 
     // Filter the objects to get only players
@@ -423,12 +427,12 @@ pub fn run_arbitrary_data_load_test(num_objects: usize, num_regions: usize) -> R
 
     let start_time = Instant::now();
 
-    // Create regions
+    // Create cubic regions
     let regions: Vec<Uuid> = (0..num_regions)
         .map(|i| {
             let center = [i as f64 * 1000.0, 0.0, 0.0];
-            let radius = 500.0;
-            vault_manager.create_or_load_region(center, radius)
+            let size = 500.0;  // Size of each cubic region
+            vault_manager.create_or_load_region(center, size)
                 .map_err(|e| format!("Failed to create region: {}", e))
         })
         .collect::<Result<Vec<Uuid>, String>>()?;

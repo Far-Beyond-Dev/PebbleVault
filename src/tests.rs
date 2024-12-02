@@ -112,11 +112,11 @@ fn test_region_and_object_operations(db_path: &str) -> Result<(), String> {
     assert!(vault_manager.regions.is_empty(), "VaultManager should start with no regions");
     println!("{}", "VaultManager starts with no regions as expected".green());
 
-    // Create a new region
+    // Create a new cubic region
     let region_center = [0.0, 0.0, 0.0];
-    let region_radius = 100.0;
-    let region_id = vault_manager.create_or_load_region(region_center, region_radius)?;
-    println!("Region created with ID: {}", region_id.to_string().cyan());
+    let region_size = 100.0;  // 100x100x100 cube
+    let region_id = vault_manager.create_or_load_region(region_center, region_size)?;
+    println!("Created cubic region with ID: {}", region_id.to_string().cyan());
 
     // Assert that the VaultManager now has one region
     assert_eq!(vault_manager.regions.len(), 1, "VaultManager should have one region after creation");
@@ -157,10 +157,10 @@ fn test_querying_and_player_transfer(db_path: &str) -> Result<(), String> {
     // Create a new VaultManager instance
     let mut vault_manager: VaultManager<TestCustomData> = VaultManager::new(db_path)?;
 
-    // Create two regions
-    let region1_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
+    // Create two cubic regions
+    let region1_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;  // 100x100x100 cube
     println!("Created region 1 with ID: {}", region1_id.to_string().cyan());
-    let region2_id = vault_manager.create_or_load_region([200.0, 200.0, 200.0], 100.0)?;
+    let region2_id = vault_manager.create_or_load_region([200.0, 200.0, 200.0], 100.0)?;  // 100x100x100 cube
     println!("Created region 2 with ID: {}", region2_id.to_string().cyan());
 
     // Add a player to region 1
@@ -222,9 +222,9 @@ fn test_persistence(db_path: &str) -> Result<(), String> {
         // Create a new VaultManager instance
         let mut vault_manager: VaultManager<TestCustomData> = VaultManager::new(db_path)?;
         
-        // Create a region
-        let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
-        println!("Created region with ID: {}", region_id.to_string().cyan());
+        // Create a cubic region
+        let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;  // 100x100x100 cube
+        println!("Created cubic region with ID: {}", region_id.to_string().cyan());
         
         // Add an object to the region
         let object_uuid = Uuid::new_v4();
@@ -270,9 +270,9 @@ fn test_with_arbitrary_struct(db_path: &str) -> Result<(), String> {
     // Create a new VaultManager instance with ArbitraryGameObject as custom data
     let mut vault_manager: VaultManager<ArbitraryGameObject> = VaultManager::new(db_path)?;
 
-    // Create a region
-    let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;
-    println!("Created region with ID: {}", region_id.to_string().cyan());
+    // Create a cubic region
+    let region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0)?;  // 100x100x100 cube
+    println!("Created cubic region with ID: {}", region_id.to_string().cyan());
 
     // Create an ArbitraryGameObject instance
     let game_object = Arc::new(ArbitraryGameObject {
