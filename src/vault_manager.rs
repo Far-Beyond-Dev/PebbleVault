@@ -74,7 +74,6 @@ use crate::MySQLGeo::Point;
 /// * `T`: The type of custom data associated with spatial objects. Must implement `Clone`, `Serialize`,
 ///        `Deserialize`, and `PartialEq`.
 #[derive(Debug)]
-#[derive(Debug)]
 pub struct VaultManager<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// HashMap storing regions, keyed by their UUID
     pub regions: HashMap<Uuid, Arc<Mutex<VaultRegion<T>>>>,
