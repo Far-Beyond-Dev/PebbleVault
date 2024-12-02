@@ -6,7 +6,7 @@
 //!
 //! ## Key Features
 //!
-//! - **Spatial Partitioning**: Divides the world into regions for efficient spatial queries.
+//! - **Spatial Partitioning**: Divides the world into cubic regions for efficient spatial queries.
 //! - **Custom Data Support**: Allows associating arbitrary data with spatial objects using `Arc<T>`.
 //! - **Persistent Storage**: Saves and loads spatial data to/from a database.
 //! - **Efficient Querying**: Uses R-trees for fast spatial lookups within regions.
@@ -73,6 +73,7 @@ use crate::MySQLGeo::Point;
 ///
 /// * `T`: The type of custom data associated with spatial objects. Must implement `Clone`, `Serialize`,
 ///        `Deserialize`, and `PartialEq`.
+#[derive(Debug)]
 #[derive(Debug)]
 pub struct VaultManager<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// HashMap storing regions, keyed by their UUID
@@ -151,6 +152,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// # Notes
     ///
     /// This method is private and is automatically called by `new()`. It shouldn't be called directly by users.
+    /// Each region is loaded as a cubic area defined by its center point and size.
     fn load_regions_from_db(&mut self) -> Result<(), String> {
         let regions = self.persistent_db.get_all_regions()
             .map_err(|e| format!("Failed to load regions from database: {}", e))?;
@@ -158,11 +160,11 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
         println!("Loaded {} regions from the database", regions.len());
 
         for region in regions {
-            println!("Loading region: ID: {}, Center: {:?}, Radius: {}", region.id, region.center, region.radius);
+            println!("Loading region: ID: {}, Center: {:?}, Size: {}", region.id, region.center, region.size);
             let vault_region = VaultRegion {
                 id: region.id,
                 center: region.center,
-                radius: region.radius,
+                size: region.size,
                 rtree: RTree::new(),
             };
 
@@ -195,12 +197,12 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// Creates a new region or loads an existing one from the persistent database.
     ///
     /// This function is used to define spatial partitions in your world. If a region with the given
-    /// center and radius already exists, it returns the existing region's ID. Otherwise, it creates a new region.
+    /// center and size already exists, it returns the existing region's ID. Otherwise, it creates a new region.
     ///
     /// # Arguments
     ///
     /// * `center` - An array of 3 f64 values representing the x, y, z coordinates of the region's center.
-    /// * `radius` - The radius of the region.
+    /// * `size` - The size (length of each side) of the cubic region.
     ///
     /// # Returns
     ///
@@ -212,19 +214,19 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// # use your_crate::{VaultManager, CustomData};
     /// # let mut vault_manager: VaultManager<CustomData> = VaultManager::new("path/to/database.db").unwrap();
     /// let center = [0.0, 0.0, 0.0];
-    /// let radius = 100.0;
-    /// let region_id = vault_manager.create_or_load_region(center, radius).expect("Failed to create region");
+    /// let size = 100.0;  // Creates a 100x100x100 cubic region
+    /// let region_id = vault_manager.create_or_load_region(center, size).expect("Failed to create region");
     /// ```
     ///
     /// # Notes
     ///
-    /// - Regions are spherical, defined by a center point and a radius.
+    /// - Regions are cubic, defined by a center point and a size (length of each side).
     /// - Overlapping regions are allowed, but may impact performance for objects in the overlapped areas.
-    pub fn create_or_load_region(&mut self, center: [f64; 3], radius: f64) -> Result<Uuid, String> {
-        // Check if a region with the same center and radius already exists
+    pub fn create_or_load_region(&mut self, center: [f64; 3], size: f64) -> Result<Uuid, String> {
+        // Check if a region with the same center and size already exists
         if let Some(existing_region) = self.regions.values().find(|r| {
             let r = r.lock().unwrap();
-            r.center == center && r.radius == radius
+            r.center == center && r.size == size
         }) {
             return Ok(existing_region.lock().unwrap().id);
         }
@@ -238,7 +240,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
         let region = VaultRegion {
             id: region_id,
             center,
-            radius,
+            size,
             rtree,
         };
 
@@ -246,7 +248,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
         self.regions.insert(region_id, Arc::new(Mutex::new(region)));
 
         // Persist the region to the database
-        self.persistent_db.create_region(region_id, center, radius)
+        self.persistent_db.create_region(region_id, center, size)
             .map_err(|e| format!("Failed to persist region to database: {}", e))?;
 
         Ok(region_id)
@@ -286,7 +288,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     ///
     /// # Notes
     ///
-    /// - The object is added to the specified region regardless of its coordinates. Ensure the coordinates fall within the region's bounds for consistent behavior.
+    /// - The object is added to the specified region regardless of its coordinates. Ensure the coordinates fall within the region's cubic bounds for consistent behavior.
     /// - If an object with the same UUID already exists, it will be overwritten.
     /// - The `custom_data` is stored as an `Arc<T>` to allow efficient sharing of data between objects.
     pub fn add_object(&self, region_id: Uuid, uuid: Uuid, object_type: &str, x: f64, y: f64, z: f64, custom_data: Arc<T>) -> Result<(), String> {
@@ -321,7 +323,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
 
     /// Queries objects within a specific region.
     ///
-    /// This function searches for objects within a given bounding box in a specified region.
+    /// This function searches for objects within a given cubic bounding box in a specified region.
     /// It's useful for finding all objects in a particular area, such as for rendering or game logic.
     ///
     /// # Arguments
@@ -341,6 +343,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// # use uuid::Uuid;
     /// # let vault_manager: VaultManager<CustomData> = VaultManager::new("path/to/database.db").unwrap();
     /// # let region_id = Uuid::new_v4();
+    /// // Query a 10x10x10 cubic area
     /// let objects = vault_manager.query_region(region_id, 0.0, 0.0, 0.0, 10.0, 10.0, 10.0).expect("Failed to query region");
     /// for object in objects {
     ///     println!("Found object: {:?}", object.uuid);
@@ -350,7 +353,8 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// # Notes
     ///
     /// - The query is performed using an R-tree, which provides efficient spatial searching.
-    /// - Objects intersecting the bounding box are included in the results, not just those fully contained.
+    /// - Objects intersecting the cubic bounding box are included in the results.
+    /// - The query box does not need to align with region boundaries.
     pub fn query_region(&self, region_id: Uuid, min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) -> Result<Vec<SpatialObject<T>>, String> {
         let region = self.regions.get(&region_id)
             .ok_or_else(|| format!("Region not found: {}", region_id))?;
@@ -396,7 +400,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     ///
     /// # Notes
     ///
-    /// - The player's position is updated to the center of the destination region.
+    /// - The player's position is updated to the center of the destination region's cube.
     /// - This method does not check if the new position is valid within the game world; that logic should be handled separately.
     /// - The persistent database is not updated in this method; call `persist_to_disk()` to save changes.
     pub fn transfer_player(&self, player_uuid: Uuid, from_region_id: Uuid, to_region_id: Uuid) -> Result<(), String> {

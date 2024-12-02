@@ -34,11 +34,12 @@ pub struct Region {
     pub id: Uuid,
     /// Center coordinates of the region [x, y, z]
     pub center: [f64; 3],
-    /// Radius of the region
-    pub radius: f64,
+    /// Length of each side of the cubic region
+    pub size: f64,
 }
 
 /// Manages the connection to the SQLite database and provides methods for data manipulation.
+#[derive(Debug)]
 #[derive(Debug)]
 pub struct Database {
     conn: Connection,
@@ -124,7 +125,7 @@ impl Database {
                 center_x REAL NOT NULL,
                 center_y REAL NOT NULL,
                 center_z REAL NOT NULL,
-                radius REAL NOT NULL
+                size REAL NOT NULL
             )",
             [],
         )?;
@@ -236,7 +237,7 @@ impl Database {
     ///
     /// * `region_id` - UUID of the region to create.
     /// * `center` - Center coordinates of the region.
-    /// * `radius` - Radius of the region.
+    /// * `size` - Length of each side of the cubic region.
     ///
     /// # Returns
     ///
@@ -247,14 +248,14 @@ impl Database {
     /// ```
     /// let region_id = Uuid::new_v4();
     /// let center = [0.0, 0.0, 0.0];
-    /// let radius = 100.0;
-    /// db.create_region(region_id, center, radius).expect("Failed to create region");
+    /// let size = 100.0;  // Creates a 100x100x100 cubic region
+    /// db.create_region(region_id, center, size).expect("Failed to create region");
     /// ```
-    pub fn create_region(&self, region_id: Uuid, center: [f64; 3], radius: f64) -> SqlResult<()> {
+    pub fn create_region(&self, region_id: Uuid, center: [f64; 3], size: f64) -> SqlResult<()> {
         // Insert the region into the database
         self.conn.execute(
-            "INSERT OR REPLACE INTO regions (id, center_x, center_y, center_z, radius) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![region_id.to_string(), center[0], center[1], center[2], radius],
+            "INSERT OR REPLACE INTO regions (id, center_x, center_y, center_z, size) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![region_id.to_string(), center[0], center[1], center[2], size],
         )?;
         Ok(())
     }
@@ -328,7 +329,7 @@ impl Database {
     /// ```
     pub fn get_all_regions(&self) -> SqlResult<Vec<Region>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, center_x, center_y, center_z, radius FROM regions",
+            "SELECT id, center_x, center_y, center_z, size FROM regions",
         )?;
         
         let regions_iter = stmt.query_map([], |row| {
@@ -336,19 +337,19 @@ impl Database {
             let center_x: f64 = row.get(1)?;
             let center_y: f64 = row.get(2)?;
             let center_z: f64 = row.get(3)?;
-            let radius: f64 = row.get(4)?;
+            let size: f64 = row.get(4)?;
             
             Ok(Region {
                 id: Uuid::parse_str(&id).unwrap(),
                 center: [center_x, center_y, center_z],
-                radius,
+                size,
             })
         })?;
         
         let mut regions = Vec::new();
         for region in regions_iter {
             let region = region?;
-            println!("Retrieved region: ID: {}, Center: {:?}, Radius: {}", region.id, region.center, region.radius);
+            println!("Retrieved region: ID: {}, Center: {:?}, Size: {}", region.id, region.center, region.size);
             regions.push(region);
         }
         

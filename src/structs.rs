@@ -40,7 +40,7 @@
 //! let region = VaultRegion {
 //!     id: Uuid::new_v4(),
 //!     center: [0.0, 0.0, 0.0],
-//!     radius: 100.0,
+//!     size: 100.0,
 //!     rtree: RTree::new(),
 //! };
 //! ```
@@ -178,7 +178,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> RTree
 
 /// Represents a region in the game world for the VaultManager.
 ///
-/// This struct defines a spatial partition containing multiple `SpatialObject`s.
+/// This struct defines a cubic spatial partition containing multiple `SpatialObject`s.
 /// It uses an R-tree for efficient spatial indexing and querying of objects within the region.
 ///
 /// # Type Parameters
@@ -190,7 +190,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> RTree
 ///
 /// * `id`: Unique identifier for the region.
 /// * `center`: 3D coordinates of the region's center [x, y, z].
-/// * `radius`: Radius of the region.
+/// * `size`: Length of each side of the cubic region.
 /// * `rtree`: Spatial index (RTree) for objects in this region.
 ///
 /// # Examples
@@ -210,7 +210,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> RTree
 /// let region: VaultRegion<CustomData> = VaultRegion {
 ///     id: Uuid::new_v4(),
 ///     center: [0.0, 0.0, 0.0],
-///     radius: 100.0,
+///     size: 100.0,  // Creates a 100x100x100 cubic region
 ///     rtree: RTree::new(),
 /// };
 /// ```
@@ -223,8 +223,8 @@ pub struct VaultRegion<T: Clone + Serialize + for<'de> Deserialize<'de> + Partia
     pub id: Uuid,
     /// Center coordinates of the region [x, y, z]
     pub center: [f64; 3],
-    /// Radius of the region
-    pub radius: f64,
+    /// Length of each side of the cubic region
+    pub size: f64,
     /// Spatial index (RTree) for objects in this region
     pub rtree: RTree<SpatialObject<T>>,
 }
