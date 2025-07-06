@@ -21,6 +21,12 @@ pub struct Point {
     pub y: f64,
     /// Z-coordinate
     pub z: f64,
+    /// Width of object (along X axis)
+    pub size_x: f64,
+    /// Width of object (along Y axis)
+    pub size_y: f64,
+    /// Width of object (along Z axis)
+    pub size_z: f64,
     /// Object type
     pub object_type: String,
     /// Custom data associated with the point
@@ -53,6 +59,9 @@ impl Point {
     /// * `x` - X-coordinate of the point.
     /// * `y` - Y-coordinate of the point.
     /// * `z` - Z-coordinate of the point.
+    /// * `size_x` - Width of the object along X axis.
+    /// * `size_x` - Width of the object along X axis.
+    /// * `size_x` - Width of the object along X axis.
     /// * `object_type` - Object type of the point.
     /// * `custom_data` - Custom data associated with the point.
     ///
@@ -145,6 +154,8 @@ impl Database {
     /// # Examples
     ///
     /// ```
+    /// use uuid::Uuid;
+    /// 
     /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// let region_id = Uuid::new_v4();
     /// db.add_point(&point, region_id).expect("Failed to add point");
