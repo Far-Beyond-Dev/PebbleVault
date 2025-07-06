@@ -104,6 +104,8 @@ pub struct SpatialObject<T: Clone + Serialize + for<'de> Deserialize<'de> + Part
     pub object_type: String,
     /// 3D coordinates of the object [x, y, z]
     pub point: [f64; 3],
+    /// Dimensions of the object width, height, depth
+    pub size: [f64; 3],
     /// Reference-counted pointer to custom data associated with the object
     pub custom_data: Arc<T>,
 }
