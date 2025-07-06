@@ -145,6 +145,8 @@ impl Database {
     /// # Examples
     ///
     /// ```
+    /// use uuid::Uuid;
+    /// 
     /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// let region_id = Uuid::new_v4();
     /// db.add_point(&point, region_id).expect("Failed to add point");
