@@ -156,6 +156,10 @@ pub fn run_load_test(vault_manager: &mut VaultManager<LoadTestData>, num_objects
             let x = rng.gen_range(-500.0..500.0);
             let y = rng.gen_range(-500.0..500.0);
             let z = rng.gen_range(-500.0..500.0);
+
+            let size_x = rng.gen_range(0.1..5.0);
+            let size_y = rng.gen_range(0.1..5.0);
+            let size_z = rng.gen_range(0.1..5.0);
             let custom_data = Arc::new(LoadTestData::new_random());
             let object_uuid = Uuid::new_v4();
             let object_type = match rng.gen_range(0..3) {
@@ -163,7 +167,7 @@ pub fn run_load_test(vault_manager: &mut VaultManager<LoadTestData>, num_objects
                 1 => "building",
                 _ => "resource",
             };
-            vm.add_object(region_id, object_uuid, object_type, x, y, z, custom_data)?;
+            vm.add_object(region_id, object_uuid, object_type, x, y, z, size_x, size_y, size_z, custom_data)?;
             object_ids.push(object_uuid);
             pb.inc(1);
         }
@@ -453,6 +457,9 @@ pub fn run_arbitrary_data_load_test(num_objects: usize, num_regions: usize) -> R
         let x = rng.gen_range(-500.0..500.0);
         let y = rng.gen_range(-500.0..500.0);
         let z = rng.gen_range(-500.0..500.0);
+        let size_x = rng.gen_range(0.1..5.0);
+        let size_y = rng.gen_range(0.1..5.0);
+        let size_z = rng.gen_range(0.1..5.0);
         let custom_data = Arc::new(rng.gen::<ArbitraryTestData>());
         let object_uuid = Uuid::new_v4();
         let object_type = match rng.gen_range(0..3) {
@@ -460,7 +467,8 @@ pub fn run_arbitrary_data_load_test(num_objects: usize, num_regions: usize) -> R
             1 => "building",
             _ => "resource",
         };
-        vault_manager.add_object(region_id, object_uuid, object_type, x, y, z, custom_data)
+        vault_manager
+            .add_object(region_id, object_uuid, object_type, x, y, z, size_x, size_y, size_z, custom_data)
             .map_err(|e| format!("Failed to add object: {}", e))?;
         pb.inc(1);
     }
