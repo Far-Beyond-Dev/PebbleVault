@@ -25,7 +25,6 @@ use tempfile::tempdir;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
-use crate::MySQLGeo::Point;
 use colored::*;
 use serde_json;
 

@@ -548,7 +548,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// * `Result<(), String>` - An empty result if successful, or an error message if not.
     pub fn remove_object(&mut self, object_id: Uuid) -> Result<(), String> {
         // Find the region containing the object
-        for (region_id, region) in &mut self.regions {
+        for (_, region) in &mut self.regions {
             let mut region = region.lock().unwrap();
             // Find and remove the object from the RTree
             let mut object_to_remove = None;
