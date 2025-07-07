@@ -124,14 +124,42 @@ fn test_region_and_object_operations(db_path: &str) -> Result<(), String> {
 
     // Add the first object to the region
     let object1_uuid = Uuid::new_v4();
-    let custom_data1 = Arc::new(TestCustomData { name: "Object 1".to_string(), value: 42 });
-    vault_manager.add_object(region_id, object1_uuid, "player", 10.0, 20.0, 30.0, custom_data1)?;
+    let custom_data1 = Arc::new(TestCustomData {
+        name: "Object 1".to_string(),
+        value: 42,
+    });
+    vault_manager.add_object(
+        region_id,
+        object1_uuid,
+        "player",
+        10.0,
+        20.0,
+        30.0,
+        1.0, // size_x
+        1.0, // size_y
+        1.0, // size_z
+        custom_data1,
+    )?;
     println!("Added object 1 with UUID: {}", object1_uuid.to_string().cyan());
 
     // Add the second object to the region
     let object2_uuid = Uuid::new_v4();
-    let custom_data2 = Arc::new(TestCustomData { name: "Object 2".to_string(), value: 100 });
-    vault_manager.add_object(region_id, object2_uuid, "resource", -10.0, -20.0, -30.0, custom_data2)?;
+    let custom_data2 = Arc::new(TestCustomData {
+        name: "Object 2".to_string(),
+        value: 100,
+    });
+    vault_manager.add_object(
+        region_id,
+        object2_uuid,
+        "resource",
+        -10.0,
+        -20.0,
+        -30.0,
+        2.0,
+        2.0,
+        2.0,
+        custom_data2,
+    )?;
     println!("Added object 2 with UUID: {}", object2_uuid.to_string().cyan());
 
     // Query the region to verify object addition
@@ -165,8 +193,18 @@ fn test_querying_and_player_transfer(db_path: &str) -> Result<(), String> {
 
     // Add a player to region 1
     let player_uuid = Uuid::new_v4();
-    let player_data = Arc::new(TestCustomData { name: "Player 1".to_string(), value: 50 });
-    vault_manager.add_object(region1_id, player_uuid, "player", 10.0, 10.0, 10.0, player_data)?;
+    let player_data = Arc::new(TestCustomData {
+        name: "Player 1".to_string(),
+        value: 50,
+    });
+    vault_manager.add_object(
+        region1_id,
+        player_uuid,
+        "player",
+        10.0, 10.0, 10.0,
+        1.5, 1.5, 1.5,
+        player_data,
+    )?;
     println!("Added player with UUID: {}", player_uuid.to_string().cyan());
 
     // Query region 1 to verify player addition
@@ -228,10 +266,20 @@ fn test_persistence(db_path: &str) -> Result<(), String> {
         
         // Add an object to the region
         let object_uuid = Uuid::new_v4();
-        let custom_data = Arc::new(TestCustomData { name: "Persistent Object".to_string(), value: 200 });
-        vault_manager.add_object(region_id, object_uuid, "building", 10.0, 20.0, 30.0, custom_data)?;
+        let custom_data = Arc::new(TestCustomData {
+            name: "Persistent Object".to_string(),
+            value: 200,
+        });
+        vault_manager.add_object(
+            region_id,
+            object_uuid,
+            "building",
+            10.0, 20.0, 30.0,
+            2.0, 2.0, 2.0,
+            custom_data,
+        )?;
         println!("Added object with UUID: {}", object_uuid.to_string().cyan());
-        
+
         // Persist data to disk
         vault_manager.persist_to_disk()?;
         println!("{}", "Data persisted successfully".green());
@@ -284,7 +332,14 @@ fn test_with_arbitrary_struct(db_path: &str) -> Result<(), String> {
 
     // Add the game object to the region
     let object_uuid = Uuid::new_v4();
-    vault_manager.add_object(region_id, object_uuid, "game_object", 10.0, 20.0, 30.0, game_object.clone())?;
+    vault_manager.add_object(
+        region_id,
+        object_uuid,
+        "game_object",
+        10.0, 20.0, 30.0,
+        2.5, 3.0, 1.8,
+        game_object.clone(),
+    )?;
     println!("Added game object with UUID: {}", object_uuid.to_string().cyan());
 
     let query_result = vault_manager.query_region(region_id, -50.0, -50.0, -50.0, 50.0, 50.0, 50.0)?;

@@ -74,8 +74,28 @@ impl Point {
     /// ```
     /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// ```
-    pub fn new(id: Option<Uuid>, x: f64, y: f64, z: f64, object_type: String, custom_data: Value) -> Self {
-        Point { id, x, y, z, object_type, custom_data }
+    pub fn new(
+        id: Option<Uuid>,
+        x: f64,
+        y: f64,
+        z: f64,
+        size_x: f64,
+        size_y: f64,
+        size_z: f64,
+        object_type: String,
+        custom_data: Value,
+    ) -> Self {
+        Point {
+            id,
+            x,
+            y,
+            z,
+            size_x,
+            size_y,
+            size_z,
+            object_type,
+            custom_data,
+        }
     }
 }
 
@@ -175,8 +195,20 @@ impl Database {
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
 
         self.conn.execute(
-            "INSERT OR REPLACE INTO points (id, x, y, z, dataFile, region_id, object_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, point.x, point.y, point.z, &file_path, region_id.to_string(), &point.object_type],
+            "INSERT OR REPLACE INTO points (id, x, y, z, dataFile, region_id, object_type, sizeX, sizeY, sizeZ)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                id,
+                point.x,
+                point.y,
+                point.z,
+                &file_path,
+                region_id.to_string(),
+                &point.object_type,
+                point.size_x,
+                point.size_y,
+                point.size_z,
+            ],
         )?;
         
         Ok(())
@@ -206,8 +238,8 @@ impl Database {
     pub fn get_points_within_radius(&self, x1: f64, y1: f64, z1: f64, radius: f64) -> SqlResult<Vec<Point>> {
         let radius_sq = radius * radius;
         let mut stmt = self.conn.prepare(
-            "SELECT id, x, y, z, dataFile, object_type FROM points
-             WHERE ((x - ?1) * (x - ?1) + (y - ?2) * (y - ?2) + (z - ?3) * (z - ?3)) <= ?4",
+            "SELECT id, x, y, z, dataFile, object_type, sizeX, sizeY, sizeZ FROM points
+            WHERE ((x - ?1) * (x - ?1) + (y - ?2) * (y - ?2) + (z - ?3) * (z - ?3)) <= ?4",
         )?;
         
         let points_iter = stmt.query_map(params![x1, y1, z1, radius_sq], |row| {
@@ -215,6 +247,9 @@ impl Database {
             let x: f64 = row.get(1)?;
             let y: f64 = row.get(2)?;
             let z: f64 = row.get(3)?;
+            let size_x: f64 = row.get(6)?;
+            let size_y: f64 = row.get(7)?;
+            let size_z: f64 = row.get(8)?;
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
             
@@ -228,6 +263,9 @@ impl Database {
                 x,
                 y,
                 z,
+                size_x,
+                size_y,
+                size_z,
                 object_type,
                 custom_data,
             })
@@ -387,15 +425,18 @@ impl Database {
     /// }
     /// ```
     pub fn get_points_in_region(&self, region_id: Uuid) -> SqlResult<Vec<Point>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, x, y, z, dataFile, object_type FROM points WHERE region_id = ?1",
-        )?;
+    let mut stmt = self.conn.prepare(
+        "SELECT id, x, y, z, dataFile, object_type, sizeX, sizeY, sizeZ FROM points WHERE region_id = ?1",
+    )?;
         
         let points_iter = stmt.query_map(params![region_id.to_string()], |row| {
             let id: String = row.get(0)?;
             let x: f64 = row.get(1)?;
             let y: f64 = row.get(2)?;
             let z: f64 = row.get(3)?;
+            let size_x: f64 = row.get(6)?;
+            let size_y: f64 = row.get(7)?;
+            let size_z: f64 = row.get(8)?;
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
             
@@ -409,6 +450,9 @@ impl Database {
                 x,
                 y,
                 z,
+                size_x,
+                size_y,
+                size_z,
                 object_type,
                 custom_data,
             })

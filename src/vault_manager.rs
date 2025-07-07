@@ -183,6 +183,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
                         uuid: point.id.unwrap(),
                         object_type: point.object_type,
                         point: [point.x, point.y, point.z],
+                        size: [point.size_x, point.size_y, point.size_z],
                         custom_data: Arc::new(custom_data),
                     };
                     region.rtree.insert(spatial_object);
@@ -266,6 +267,10 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// * `x` - The x-coordinate of the object.
     /// * `y` - The y-coordinate of the object.
     /// * `z` - The z-coordinate of the object.
+    /// * `size_x` - The width of the object along the X-axis.
+    /// * `size_y` - The height of the object along the Y-axis.
+    /// * `size_z` - The depth of the object along the Z-axis.
+    /// 
     /// * `custom_data` - The custom data associated with the object, wrapped in an `Arc`.
     ///
     /// # Returns
@@ -290,7 +295,19 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// - The object is added to the specified region regardless of its coordinates. Ensure the coordinates fall within the region's cubic bounds for consistent behavior.
     /// - If an object with the same UUID already exists, it will be overwritten.
     /// - The `custom_data` is stored as an `Arc<T>` to allow efficient sharing of data between objects.
-    pub fn add_object(&self, region_id: Uuid, uuid: Uuid, object_type: &str, x: f64, y: f64, z: f64, custom_data: Arc<T>) -> Result<(), String> {
+    pub fn add_object(
+        &self,
+        region_id: Uuid,
+        uuid: Uuid,
+        object_type: &str,
+        x: f64,
+        y: f64,
+        z: f64,
+        size_x: f64,
+        size_y: f64,
+        size_z: f64,
+        custom_data: Arc<T>,
+    ) -> Result<(), String> {
         let region = self.regions.get(&region_id)
             .ok_or_else(|| format!("Region not found: {}", region_id))?;
         
@@ -300,6 +317,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
             uuid,
             object_type: object_type.to_string(),
             point: [x, y, z],
+            size: [size_x, size_y, size_z],
             custom_data: custom_data.clone(),
         };
         
@@ -310,6 +328,9 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
             x,
             y,
             z,
+            size_x,
+            size_y,
+            size_z,
             object_type: object_type.to_string(),
             custom_data: serde_json::to_value((*custom_data).clone()).map_err(|e| format!("Failed to serialize custom data: {}", e))?,
         };
@@ -370,8 +391,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// Transfers a player (object) from one region to another.
     ///
     /// This function moves a player object from its current region to a new region,
-    /// updating both the in-memory structures and the persistent database. It's particularly
-    /// useful for handling player movement between different areas of your game world.
+    /// updating the in-memory RTree structure. The object's size and custom data are preserved.
     ///
     /// # Arguments
     ///
@@ -381,7 +401,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     ///
     /// # Returns
     ///
-    /// * `Result<(), String>` - An empty result if successful, or an error message if not.
+    /// * `Result<(), String>` - Ok if successful, or an error string if the transfer fails.
     ///
     /// # Examples
     ///
@@ -392,16 +412,16 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// # let from_region_id = vault_manager.create_or_load_region([0.0, 0.0, 0.0], 100.0).unwrap();
     /// # let to_region_id = vault_manager.create_or_load_region([200.0, 200.0, 200.0], 100.0).unwrap();
     /// # let player_id = Uuid::new_v4();
-    /// # let custom_data = CustomData { /* ... */ };
-    /// # vault_manager.add_object(from_region_id, player_id, "player", 1.0, 2.0, 3.0, custom_data).unwrap();
+    /// # let custom_data = Arc::new(CustomData { /* ... */ });
+    /// # vault_manager.add_object(from_region_id, player_id, "player", 1.0, 2.0, 3.0, 1.0, 1.0, 1.0, custom_data).unwrap();
     /// vault_manager.transfer_player(player_id, from_region_id, to_region_id).expect("Failed to transfer player");
     /// ```
     ///
     /// # Notes
     ///
-    /// - The player's position is updated to the center of the destination region's cube.
-    /// - This method does not check if the new position is valid within the game world; that logic should be handled separately.
-    /// - The persistent database is not updated in this method; call `persist_to_disk()` to save changes.
+    /// - The player’s position is set to the center of the destination region.
+    /// - The player's size and custom data are preserved.
+    /// - This does **not** persist the change to the database; call `persist_to_disk()` to flush to disk.
     pub fn transfer_player(&self, player_uuid: Uuid, from_region_id: Uuid, to_region_id: Uuid) -> Result<(), String> {
         let from_region = self.regions.get(&from_region_id)
             .ok_or_else(|| format!("Source region not found: {}", from_region_id))?;
@@ -422,6 +442,7 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
             uuid: player.uuid,
             object_type: player.object_type,
             point: to_region.center,
+            size: player.size, // <- preserve size
             custom_data: player.custom_data.clone(),
         };
 
@@ -480,6 +501,9 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
                     x: obj.point[0],
                     y: obj.point[1],
                     z: obj.point[2],
+                    size_x: obj.size[0],
+                    size_y: obj.size[1],
+                    size_z: obj.size[2],
                     object_type: obj.object_type.clone(),
                     custom_data: serde_json::to_value((*obj.custom_data).clone())
                         .map_err(|e| format!("Failed to serialize custom data: {}", e))?,
