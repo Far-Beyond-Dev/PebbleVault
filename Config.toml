@@ -1,0 +1,22 @@
+[database]
+backend = "mysql"  # "postgres" or "sqlite" or "mysql"
+
+# PostgreSQL config (used if backend = "postgres")
+[database.postgres]
+host = "localhost"
+port = 5433
+user = "postgres"
+password = "postgres"
+dbname = "spatial"
+
+# SQLite config (used if backend = "sqlite")
+[database.sqlite]
+path = "spatial_db.db"
+
+# MySQL config (used if backend = "mysql")
+[database.mysql]
+host = "localhost"
+port = 3307
+user = "mysql"
+password = "mysql"
+dbname = "spatial"

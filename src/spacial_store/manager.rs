@@ -50,14 +50,14 @@
 //! - Custom data is stored as `Arc<T>`, allowing for efficient sharing of data between objects and reducing memory usage.
 
 use crate::structs::{VaultRegion, SpatialObject};
-use crate::MySQLGeo;
 use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rstar::{RTree, AABB};
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Serialize, Deserialize};
-use crate::MySQLGeo::Point;
+use crate::spacial_store::types::Point;
+use crate::spacial_store::backend::PersistenceBackend;
 
 /// Manages spatial regions and objects within a persistent database.
 ///
@@ -73,12 +73,13 @@ use crate::MySQLGeo::Point;
 ///
 /// * `T`: The type of custom data associated with spatial objects. Must implement `Clone`, `Serialize`,
 ///        `Deserialize`, and `PartialEq`.
-#[derive(Debug)]
 pub struct VaultManager<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> {
     /// HashMap storing regions, keyed by their UUID
     pub regions: HashMap<Uuid, Arc<Mutex<VaultRegion<T>>>>,
-    /// Persistent database connection
-    pub persistent_db: MySQLGeo::Database,
+
+    /// Persistent backend implementing spatial storage (e.g., SQLite, Postgres, binary)
+    pub persistent_db: Box<dyn PersistenceBackend>,
+
     /// HashMap storing object types
     pub object_types: HashMap<String, String>,
 }
@@ -111,28 +112,21 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de> + PartialEq + Sized> Vault
     /// - The database connection cannot be established
     /// - The necessary tables cannot be created in the database
     /// - Existing regions cannot be loaded from the database
-    pub fn new(db_path: &str) -> Result<Self, String> {
-        // Create a new persistent database connection
-        let persistent_db = MySQLGeo::Database::new(db_path)
-            .map_err(|e| format!("Failed to create persistent database: {}", e))?;
-        
-        // Create the necessary tables in the database
-        persistent_db.create_table()
+    pub fn new(persistent_db: Box<dyn PersistenceBackend>) -> Result<Self, String> {
+        persistent_db
+            .create_table()
             .map_err(|e| format!("Failed to create table: {}", e))?;
-        
-        // Initialize the VaultManager struct
+
         let mut vault_manager = VaultManager {
             regions: HashMap::new(),
             persistent_db,
             object_types: HashMap::new(),
         };
 
-        // Initialize object types
-        vault_manager.object_types.insert("player".to_string(), "player".to_string());
-        vault_manager.object_types.insert("building".to_string(), "building".to_string());
-        vault_manager.object_types.insert("resource".to_string(), "resource".to_string());
+        vault_manager.object_types.insert("player".into(), "player".into());
+        vault_manager.object_types.insert("building".into(), "building".into());
+        vault_manager.object_types.insert("resource".into(), "resource".into());
 
-        // Load existing regions from the persistent database
         vault_manager.load_regions_from_db()?;
 
         Ok(vault_manager)
