@@ -1,11 +1,20 @@
-//! MySQLGeo: A module for persistent storage of spatial data.
+//! Spatial Types: Core data structures for spatial databases.
 //!
-//! This module provides a `Database` struct for interacting with a SQLite database
-//! to store and retrieve spatial data points. It also handles file-based storage
-//! for larger data objects associated with each point.
+//! This module defines the foundational types used across different spatial database backends,
+//! including spatial `Point`s with bounding box dimensions and associated custom data, and
+//! cubic `Region`s representing bounded 3D areas.
+//!
+//! These types are backend-agnostic and provide the basis for inserting, querying, and managing
+//! spatial data in `PebbleVault`.
+//!
+//! # Types
+//! - [`Point`]: Represents a spatial object in 3D space with size and metadata.
+//! - [`Region`]: Represents a cubic region in space for spatial partitioning.
+//!
+//! These types are used in all persistence backends like SQLite, Postgres, or file-based systems.
 
-use serde_json::{self, Value};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 /// Represents a spatial point with associated data.

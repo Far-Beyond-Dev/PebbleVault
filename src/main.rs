@@ -3,7 +3,8 @@ use std::sync::Arc;
 use std::time::Instant;
 use uuid::Uuid;
 use PebbleVault::spacial_store::backend::PersistenceBackend;
-use PebbleVault::spacial_store::sqlite_backend::SqliteDatabase;
+// use PebbleVault::spacial_store::sqlite_backend::SqliteDatabase;
+use PebbleVault::spacial_store::postgres_backend::PostgresDatabase;
 use PebbleVault::VaultManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -14,8 +15,13 @@ struct CustomData {
 
 fn main() -> Result<(), String> {
     // Create a new VaultManager with custom data type
-    let backend = Box::new(SqliteDatabase::new("spatial_db.db").map_err(|e| e.to_string())?)
-        as Box<dyn PersistenceBackend>;
+    // let backend = Box::new(SqliteDatabase::new("spatial_db.db").map_err(|e| e.to_string())?)
+    //     as Box<dyn PersistenceBackend>;
+
+    let backend = Box::new(
+        PostgresDatabase::new("host=localhost port=5433 user=postgres password=postgres dbname=spatial")
+            .map_err(|e| e.to_string())?,
+    ) as Box<dyn PersistenceBackend>;
     let mut vault_manager: VaultManager<CustomData> =
         VaultManager::new(backend).map_err(|e| e.to_string())?;
 
