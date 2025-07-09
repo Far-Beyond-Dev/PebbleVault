@@ -7,16 +7,14 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-// Import the MySQLGeo module for database operations
-mod MySQLGeo;
+pub mod spacial_store;
+
 // Import the structs module for data structures
 mod structs;
-// Import the vault_manager module for managing spatial data
-mod vault_manager;
 
 // Re-export structs and VaultManager for easier access
 pub use structs::*;
-pub use vault_manager::VaultManager;
+pub use spacial_store::manager::VaultManager;
 
 // Make the tests module public
 pub mod tests;

@@ -28,6 +28,7 @@ use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use std::fmt::Debug;
 use rand::distributions::{Distribution, Standard};
+use crate::spacial_store::sqlite_backend::SqliteDatabase;
 
 /// Custom data structure for load testing
 ///
@@ -426,8 +427,10 @@ pub fn run_arbitrary_data_load_test(num_objects: usize, num_regions: usize) -> R
     println!("\n{}", "==== Running PebbleVault Load Test with Arbitrary Data ====".green().bold());
     
     let db_path = "arbitrary_test.db";
-    let mut vault_manager: VaultManager<ArbitraryTestData> = VaultManager::new(db_path)
+    let backend = Box::new(SqliteDatabase::new(db_path).map_err(|e| format!("Failed to init backend: {}", e))?);
+    let mut vault_manager: VaultManager<ArbitraryTestData> = VaultManager::new(backend)
         .map_err(|e| format!("Failed to create VaultManager: {}", e))?;
+
 
     let start_time = Instant::now();
 

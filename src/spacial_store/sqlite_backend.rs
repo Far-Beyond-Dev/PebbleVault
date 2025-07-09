@@ -1,105 +1,18 @@
-//! MySQLGeo: A module for persistent storage of spatial data.
-//!
-//! This module provides a `Database` struct for interacting with a SQLite database
-//! to store and retrieve spatial data points. It also handles file-based storage
-//! for larger data objects associated with each point.
-
 use rusqlite::{params, Connection, Result as SqlResult};
 use serde_json::{self, Value};
-use serde::{Serialize, Deserialize};
 use std::fs;
 use uuid::Uuid;
-
-/// Represents a spatial point with associated data.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Point {
-    /// Unique identifier for the point
-    pub id: Option<Uuid>,
-    /// X-coordinate
-    pub x: f64,
-    /// Y-coordinate
-    pub y: f64,
-    /// Z-coordinate
-    pub z: f64,
-    /// Width of object (along X axis)
-    pub size_x: f64,
-    /// Width of object (along Y axis)
-    pub size_y: f64,
-    /// Width of object (along Z axis)
-    pub size_z: f64,
-    /// Object type
-    pub object_type: String,
-    /// Custom data associated with the point
-    pub custom_data: Value,
-}
-
-/// Represents a region in the spatial database.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Region {
-    /// Unique identifier for the region
-    pub id: Uuid,
-    /// Center coordinates of the region [x, y, z]
-    pub center: [f64; 3],
-    /// Length of each side of the cubic region
-    pub size: f64,
-}
+use anyhow::Result;
+use crate::spacial_store::types::{Point, Region};
+use crate::spacial_store::backend::PersistenceBackend;
 
 /// Manages the connection to the SQLite database and provides methods for data manipulation.
 #[derive(Debug)]
-pub struct Database {
+pub struct SqliteDatabase {
     conn: Connection,
 }
 
-impl Point {
-    /// Creates a new Point instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - Optional UUID for the point.
-    /// * `x` - X-coordinate of the point.
-    /// * `y` - Y-coordinate of the point.
-    /// * `z` - Z-coordinate of the point.
-    /// * `size_x` - Width of the object along X axis.
-    /// * `size_x` - Width of the object along X axis.
-    /// * `size_x` - Width of the object along X axis.
-    /// * `object_type` - Object type of the point.
-    /// * `custom_data` - Custom data associated with the point.
-    ///
-    /// # Returns
-    ///
-    /// A new Point instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
-    /// ```
-    pub fn new(
-        id: Option<Uuid>,
-        x: f64,
-        y: f64,
-        z: f64,
-        size_x: f64,
-        size_y: f64,
-        size_z: f64,
-        object_type: String,
-        custom_data: Value,
-    ) -> Self {
-        Point {
-            id,
-            x,
-            y,
-            z,
-            size_x,
-            size_y,
-            size_z,
-            object_type,
-            custom_data,
-        }
-    }
-}
-
-impl Database {
+impl SqliteDatabase {
     /// Creates a new Database instance.
     ///
     /// # Arguments
@@ -118,7 +31,7 @@ impl Database {
     pub fn new(db_path: &str) -> SqlResult<Self> {
         // Open a connection to the SQLite database
         let conn = Connection::open(db_path)?;
-        Ok(Database { conn })
+        Ok(SqliteDatabase { conn })
     }
 
     /// Creates the necessary tables in the database if they don't exist.
@@ -475,5 +388,43 @@ impl Database {
     pub fn clear_all_points(&self) -> SqlResult<()> {
         self.conn.execute("DELETE FROM points", [])?;
         Ok(())
+    }
+}
+
+impl PersistenceBackend for SqliteDatabase {
+    fn create_table(&self) -> Result<()> {
+        self.create_table().map_err(Into::into)
+    }
+
+    fn add_point(&self, point: &Point, region_id: Uuid) -> Result<()> {
+        self.add_point(point, region_id).map_err(Into::into)
+    }
+
+    fn get_points_within_radius(&self, x: f64, y: f64, z: f64, radius: f64) -> Result<Vec<Point>> {
+        self.get_points_within_radius(x, y, z, radius).map_err(Into::into)
+    }
+
+    fn create_region(&self, region_id: Uuid, center: [f64; 3], size: f64) -> Result<()> {
+        self.create_region(region_id, center, size).map_err(Into::into)
+    }
+
+    fn remove_point(&self, point_id: Uuid) -> Result<()> {
+        self.remove_point(point_id).map_err(Into::into)
+    }
+
+    fn update_point_position(&self, point_id: Uuid, x: f64, y: f64, z: f64) -> Result<()> {
+        self.update_point_position(point_id, x, y, z).map_err(Into::into)
+    }
+
+    fn get_all_regions(&self) -> Result<Vec<Region>> {
+        self.get_all_regions().map_err(Into::into)
+    }
+
+    fn get_points_in_region(&self, region_id: Uuid) -> Result<Vec<Point>> {
+        self.get_points_in_region(region_id).map_err(Into::into)
+    }
+
+    fn clear_all_points(&self) -> Result<()> {
+        self.clear_all_points().map_err(Into::into)
     }
 }
