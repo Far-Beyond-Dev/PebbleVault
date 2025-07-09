@@ -2,9 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
 use uuid::Uuid;
+use PebbleVault::config::load_config;
 use PebbleVault::spacial_store::backend::PersistenceBackend;
-// use PebbleVault::spacial_store::sqlite_backend::SqliteDatabase;
 use PebbleVault::spacial_store::postgres_backend::PostgresDatabase;
+use PebbleVault::spacial_store::sqlite_backend::SqliteDatabase;
+use PebbleVault::spacial_store::mysql_backend::MySqlDatabase;
 use PebbleVault::VaultManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -17,11 +19,42 @@ fn main() -> Result<(), String> {
     // Create a new VaultManager with custom data type
     // let backend = Box::new(SqliteDatabase::new("spatial_db.db").map_err(|e| e.to_string())?)
     //     as Box<dyn PersistenceBackend>;
+    let config = load_config().map_err(|e| e.to_string())?;
+    let backend: Box<dyn PersistenceBackend> = match config.database.backend.as_str() {
+        "postgres" => {
+            let pg = config
+                .database
+                .postgres
+                .ok_or("Missing [database.postgres] config")?;
+            let conn_str = format!(
+                "host={} port={} user={} password={} dbname={}",
+                pg.host, pg.port, pg.user, pg.password, pg.dbname
+            );
+            Box::new(PostgresDatabase::new(&conn_str).map_err(|e| e.to_string())?)
+        }
+        "sqlite" => {
+            let sqlite = config
+                .database
+                .sqlite
+                .ok_or("Missing [database.sqlite] config")?;
+            Box::new(SqliteDatabase::new(&sqlite.path).map_err(|e| e.to_string())?)
+        }
+        "mysql" => {
+            let mysql = config
+                .database
+                .mysql
+                .ok_or("Missing [database.mysql] config")?;
 
-    let backend = Box::new(
-        PostgresDatabase::new("host=localhost port=5433 user=postgres password=postgres dbname=spatial")
-            .map_err(|e| e.to_string())?,
-    ) as Box<dyn PersistenceBackend>;
+            let url = format!(
+                "mysql://{}:{}@{}:{}/{}",
+                mysql.user, mysql.password, mysql.host, mysql.port, mysql.dbname
+            );
+
+            Box::new(MySqlDatabase::new(&url).map_err(|e| e.to_string())?)
+        }
+        other => return Err(format!("Unsupported backend: {}", other)),
+    };
+
     let mut vault_manager: VaultManager<CustomData> =
         VaultManager::new(backend).map_err(|e| e.to_string())?;
 

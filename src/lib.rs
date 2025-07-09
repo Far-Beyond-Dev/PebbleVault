@@ -21,3 +21,6 @@ pub mod tests;
 
 // Import the load_test module for performance testing
 pub mod load_test;
+
+// Import config module for database configuration
+pub mod config;

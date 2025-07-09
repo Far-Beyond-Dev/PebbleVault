@@ -1,10 +1,10 @@
+use crate::spacial_store::backend::PersistenceBackend;
+use crate::spacial_store::types::{Point, Region};
+use anyhow::Result;
 use rusqlite::{params, Connection, Result as SqlResult};
 use serde_json::{self, Value};
 use std::fs;
 use uuid::Uuid;
-use anyhow::Result;
-use crate::spacial_store::types::{Point, Region};
-use crate::spacial_store::backend::PersistenceBackend;
 
 /// Manages the connection to the SQLite database and provides methods for data manipulation.
 #[derive(Debug)]
@@ -53,6 +53,9 @@ impl SqliteDatabase {
                 x REAL NOT NULL,
                 y REAL NOT NULL,
                 z REAL NOT NULL,
+                sizeX REAL NOT NULL,
+                sizeY REAL NOT NULL,
+                sizeZ REAL NOT NULL,
                 dataFile TEXT NOT NULL,
                 region_id TEXT,
                 object_type TEXT NOT NULL
@@ -88,7 +91,7 @@ impl SqliteDatabase {
     ///
     /// ```
     /// use uuid::Uuid;
-    /// 
+    ///
     /// let point = Point::new(Some(Uuid::new_v4()), 1.0, 2.0, 3.0, "Example Type".to_string(), json!({"name": "Example Point"}));
     /// let region_id = Uuid::new_v4();
     /// db.add_point(&point, region_id).expect("Failed to add point");
@@ -123,7 +126,7 @@ impl SqliteDatabase {
                 point.size_z,
             ],
         )?;
-        
+
         Ok(())
     }
 
@@ -148,13 +151,19 @@ impl SqliteDatabase {
     ///     println!("Found point: {:?}", point);
     /// }
     /// ```
-    pub fn get_points_within_radius(&self, x1: f64, y1: f64, z1: f64, radius: f64) -> SqlResult<Vec<Point>> {
+    pub fn get_points_within_radius(
+        &self,
+        x1: f64,
+        y1: f64,
+        z1: f64,
+        radius: f64,
+    ) -> SqlResult<Vec<Point>> {
         let radius_sq = radius * radius;
         let mut stmt = self.conn.prepare(
             "SELECT id, x, y, z, dataFile, object_type, sizeX, sizeY, sizeZ FROM points
             WHERE ((x - ?1) * (x - ?1) + (y - ?2) * (y - ?2) + (z - ?3) * (z - ?3)) <= ?4",
         )?;
-        
+
         let points_iter = stmt.query_map(params![x1, y1, z1, radius_sq], |row| {
             let id: String = row.get(0)?;
             let x: f64 = row.get(1)?;
@@ -165,12 +174,12 @@ impl SqliteDatabase {
             let size_z: f64 = row.get(8)?;
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
-            
+
             let custom_data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             let custom_data: Value = serde_json::from_str(&custom_data_str)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
-            
+
             Ok(Point {
                 id: Some(Uuid::parse_str(&id).unwrap()),
                 x,
@@ -183,12 +192,12 @@ impl SqliteDatabase {
                 custom_data,
             })
         })?;
-        
+
         let mut points = Vec::new();
         for point in points_iter {
             points.push(point?);
         }
-        
+
         Ok(points)
     }
 
@@ -289,31 +298,34 @@ impl SqliteDatabase {
     /// }
     /// ```
     pub fn get_all_regions(&self) -> SqlResult<Vec<Region>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, center_x, center_y, center_z, size FROM regions",
-        )?;
-        
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, center_x, center_y, center_z, size FROM regions")?;
+
         let regions_iter = stmt.query_map([], |row| {
             let id: String = row.get(0)?;
             let center_x: f64 = row.get(1)?;
             let center_y: f64 = row.get(2)?;
             let center_z: f64 = row.get(3)?;
             let size: f64 = row.get(4)?;
-            
+
             Ok(Region {
                 id: Uuid::parse_str(&id).unwrap(),
                 center: [center_x, center_y, center_z],
                 size,
             })
         })?;
-        
+
         let mut regions = Vec::new();
         for region in regions_iter {
             let region = region?;
-            println!("Retrieved region: ID: {}, Center: {:?}, Size: {}", region.id, region.center, region.size);
+            println!(
+                "Retrieved region: ID: {}, Center: {:?}, Size: {}",
+                region.id, region.center, region.size
+            );
             regions.push(region);
         }
-        
+
         println!("Total regions retrieved from database: {}", regions.len());
         Ok(regions)
     }
@@ -338,10 +350,10 @@ impl SqliteDatabase {
     /// }
     /// ```
     pub fn get_points_in_region(&self, region_id: Uuid) -> SqlResult<Vec<Point>> {
-    let mut stmt = self.conn.prepare(
+        let mut stmt = self.conn.prepare(
         "SELECT id, x, y, z, dataFile, object_type, sizeX, sizeY, sizeZ FROM points WHERE region_id = ?1",
     )?;
-        
+
         let points_iter = stmt.query_map(params![region_id.to_string()], |row| {
             let id: String = row.get(0)?;
             let x: f64 = row.get(1)?;
@@ -352,12 +364,12 @@ impl SqliteDatabase {
             let size_z: f64 = row.get(8)?;
             let data_file: String = row.get(4)?;
             let object_type: String = row.get(5)?;
-            
+
             let custom_data_str = fs::read_to_string(&data_file)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             let custom_data: Value = serde_json::from_str(&custom_data_str)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
-            
+
             Ok(Point {
                 id: Some(Uuid::parse_str(&id).unwrap()),
                 x,
@@ -370,12 +382,12 @@ impl SqliteDatabase {
                 custom_data,
             })
         })?;
-        
+
         let mut points = Vec::new();
         for point in points_iter {
             points.push(point?);
         }
-        
+
         println!("Retrieved {} points for region {}", points.len(), region_id);
         Ok(points)
     }
@@ -401,11 +413,13 @@ impl PersistenceBackend for SqliteDatabase {
     }
 
     fn get_points_within_radius(&self, x: f64, y: f64, z: f64, radius: f64) -> Result<Vec<Point>> {
-        self.get_points_within_radius(x, y, z, radius).map_err(Into::into)
+        self.get_points_within_radius(x, y, z, radius)
+            .map_err(Into::into)
     }
 
     fn create_region(&self, region_id: Uuid, center: [f64; 3], size: f64) -> Result<()> {
-        self.create_region(region_id, center, size).map_err(Into::into)
+        self.create_region(region_id, center, size)
+            .map_err(Into::into)
     }
 
     fn remove_point(&self, point_id: Uuid) -> Result<()> {
@@ -413,7 +427,8 @@ impl PersistenceBackend for SqliteDatabase {
     }
 
     fn update_point_position(&self, point_id: Uuid, x: f64, y: f64, z: f64) -> Result<()> {
-        self.update_point_position(point_id, x, y, z).map_err(Into::into)
+        self.update_point_position(point_id, x, y, z)
+            .map_err(Into::into)
     }
 
     fn get_all_regions(&self) -> Result<Vec<Region>> {
